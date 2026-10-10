@@ -311,6 +311,48 @@ async function main() {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // SPA static file serving — React/Vite frontend (production only)
+  //
+  // Resolved relative to THIS file so the path is correct whether the server
+  // runs via `tsx src/index.ts` (src/) or `node dist/index.js` (dist/).
+  // Both live one level under packages/server/, so ../../client/dist always
+  // points at the Vite build output regardless of cwd.
+  //
+  // Placement rules (order is load-bearing in Express):
+  //   1. After ALL /api, /oauth, /.well-known, /socket.io, /health routes —
+  //      so API paths are never intercepted by express.static or the fallback.
+  //   2. Before the error handler — so unmatched frontend routes get index.html
+  //      and React Router handles them client-side.
+  //   3. The /api 404 catch-all above guarantees that missing API endpoints
+  //      still return JSON, not index.html.
+  // ---------------------------------------------------------------------------
+  const clientDistDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../client/dist",
+  );
+
+  if (config.isProd) {
+    // Serve Vite build output (hashed filenames, long cache)
+    app.use(
+      express.static(clientDistDir, {
+        maxAge: "1y",
+        immutable: true,
+        // Don't serve index.html here for the root path — the SPA fallback
+        // below handles that so we can apply the correct headers.
+        index: false,
+      }),
+    );
+
+    // SPA fallback — any request that hasn't matched a backend route above
+    // and isn't a static asset gets index.html so React Router can render it.
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(clientDistDir, "index.html"));
+    });
+
+    logger.info(`Serving frontend from ${clientDistDir}`);
+  }
+
   // Error handler (must be last)
   app.use(errorHandler);
 
