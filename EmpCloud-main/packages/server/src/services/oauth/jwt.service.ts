@@ -16,13 +16,34 @@ let publicKey: string | null = null;
 let keyId: string | null = null;
 
 /**
- * Load RSA keys from disk. Call once at startup.
+ * Load RSA keys from disk or environment variables. Call once at startup.
+ *
+ * Priority:
+ *   1. File path (RSA_PRIVATE_KEY_PATH / RSA_PUBLIC_KEY_PATH) — used locally
+ *   2. Inline env vars (RSA_PRIVATE_KEY / RSA_PUBLIC_KEY) — used on Railway
+ *      and other platforms where committing .pem files is not an option.
  */
 export function loadKeys(): void {
   try {
     const resolve = (p: string) => path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
-    privateKey = fs.readFileSync(resolve(config.oauth.privateKeyPath), "utf-8");
-    publicKey = fs.readFileSync(resolve(config.oauth.publicKeyPath), "utf-8");
+    const privatePath = resolve(config.oauth.privateKeyPath);
+    const publicPath = resolve(config.oauth.publicKeyPath);
+
+    if (fs.existsSync(privatePath) && fs.existsSync(publicPath)) {
+      // Local dev / server with committed key files
+      privateKey = fs.readFileSync(privatePath, "utf-8");
+      publicKey = fs.readFileSync(publicPath, "utf-8");
+    } else if (process.env.RSA_PRIVATE_KEY && process.env.RSA_PUBLIC_KEY) {
+      // Railway / cloud deployment — keys passed as env vars.
+      // Railway stores multiline values correctly; the replace handles any
+      // platform that encodes newlines as literal \n in the variable value.
+      privateKey = process.env.RSA_PRIVATE_KEY.replace(/\\n/g, "\n");
+      publicKey = process.env.RSA_PUBLIC_KEY.replace(/\\n/g, "\n");
+    } else {
+      logger.warn("RSA keys not found. Provide key files or set RSA_PRIVATE_KEY / RSA_PUBLIC_KEY env vars.");
+      return;
+    }
+
     // Derive kid from public key fingerprint
     keyId = crypto
       .createHash("sha256")

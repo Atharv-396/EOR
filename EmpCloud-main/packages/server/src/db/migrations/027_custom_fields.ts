@@ -61,7 +61,7 @@ export async function up(knex: Knex): Promise<void> {
       t.timestamp("created_at").defaultTo(knex.fn.now());
       t.timestamp("updated_at").defaultTo(knex.fn.now());
 
-      t.index(["organization_id", "entity_type", "is_active"]);
+      t.index(["organization_id", "entity_type", "is_active"], "cfd_org_entity_active_idx");
       t.unique(["organization_id", "entity_type", "field_key"]);
     });
   }

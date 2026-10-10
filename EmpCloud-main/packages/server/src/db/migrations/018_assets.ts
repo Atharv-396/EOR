@@ -113,19 +113,19 @@ export async function up(knex: Knex): Promise<void> {
         "damaged",
         "updated",
       ]).notNullable();
-      t.integer("from_user_id")
+      t.bigInteger("from_user_id")
         .unsigned()
         .nullable()
         .references("id")
         .inTable("users")
         .onDelete("SET NULL");
-      t.integer("to_user_id")
+      t.bigInteger("to_user_id")
         .unsigned()
         .nullable()
         .references("id")
         .inTable("users")
         .onDelete("SET NULL");
-      t.integer("performed_by")
+      t.bigInteger("performed_by")
         .unsigned()
         .notNullable()
         .references("id")

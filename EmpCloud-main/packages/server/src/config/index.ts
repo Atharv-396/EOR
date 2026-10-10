@@ -66,6 +66,10 @@ export const config = {
     password: env("DB_PASSWORD", "secret"),
     name: env("DB_NAME", "empcloud"),
     autoMigrate: envBool("DB_AUTO_MIGRATE", true),
+    // Set DB_SSL=true when using Railway's public TCP endpoint or any hosted
+    // MySQL that requires encrypted connections. Leave unset for local dev
+    // or Railway's internal private network (mysql.railway.internal).
+    ssl: envBool("DB_SSL", false),
   },
 
   redis: {

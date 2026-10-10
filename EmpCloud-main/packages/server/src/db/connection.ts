@@ -11,6 +11,16 @@ let db: Knex | null = null;
 export async function initDB(): Promise<Knex> {
   if (db) return db;
 
+  // SSL support — set DB_SSL=true when connecting to Railway's public TCP
+  // endpoint or any hosted MySQL that requires encrypted connections.
+  // The rejectUnauthorized:false setting trusts Railway's self-signed cert
+  // without needing to bundle a CA certificate. For the internal Railway
+  // private network (mysql.railway.internal) SSL is not required and this
+  // flag should be left unset or false.
+  const sslConfig = config.db.ssl
+    ? { ssl: { rejectUnauthorized: false } }
+    : {};
+
   db = knex({
     client: "mysql2",
     connection: {
@@ -49,6 +59,7 @@ export async function initDB(): Promise<Knex> {
       // 16:30 UTC came back as 16:30 local). Pinning to "Z" makes reads/writes
       // consistent on any host and matches how prod already behaves.
       timezone: "Z",
+      ...sslConfig,
     },
     pool: { min: 2, max: 20 },
     migrations: {

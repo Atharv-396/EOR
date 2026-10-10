@@ -88,7 +88,7 @@ export async function up(knex: Knex): Promise<void> {
         .references("id")
         .inTable("organizations")
         .onDelete("CASCADE");
-      t.integer("user_id")
+      t.bigInteger("user_id")
         .unsigned()
         .notNullable()
         .references("id")
