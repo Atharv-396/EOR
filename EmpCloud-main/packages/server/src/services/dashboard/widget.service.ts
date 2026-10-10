@@ -23,8 +23,13 @@ function getRedis(): Redis {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
     });
+    // Attach a no-op error listener BEFORE connect() so that a refused
+    // connection does not emit an unhandled 'error' event and crash Node.
+    // The promise .catch() below handles the failure for our logic; this
+    // listener satisfies ioredis's requirement that the event is handled.
+    redis.on("error", () => {});
     redis.connect().catch((err) => {
-      logger.warn("Redis connection failed — widget caching disabled", { error: err.message });
+      logger.warn("Redis unavailable — widget caching disabled", { error: err.message });
       redis = null;
     });
   }
