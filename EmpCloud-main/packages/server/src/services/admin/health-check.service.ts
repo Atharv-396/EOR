@@ -278,6 +278,13 @@ async function checkRedisHealth(): Promise<InfraHealth> {
       maxRetriesPerRequest: 1,
     });
 
+    // Attach a no-op error listener BEFORE connect() so that a connection
+    // failure does not emit an unhandled 'error' event. The try/catch below
+    // handles the failure for our logic; this satisfies ioredis's requirement
+    // that the event is handled. Without this, every 60-second health check
+    // cycle produces an unhandled error event when Redis is unavailable.
+    client.on("error", () => {});
+
     await client.connect();
 
     const pong = await client.ping();
