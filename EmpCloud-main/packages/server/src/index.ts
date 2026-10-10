@@ -346,7 +346,10 @@ async function main() {
 
     // SPA fallback — any request that hasn't matched a backend route above
     // and isn't a static asset gets index.html so React Router can render it.
-    app.get("*", (_req, res) => {
+    // Express 5 requires path-to-regexp v8 syntax: bare "*" is invalid and
+    // throws "Missing parameter name at index 1" at startup. "/{*splat}"
+    // matches every path including "/" and is the correct Express 5 wildcard.
+    app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(clientDistDir, "index.html"));
     });
 
