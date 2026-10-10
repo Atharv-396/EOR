@@ -1,0 +1,604 @@
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { Link, useSearchParams } from "react-router-dom";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import AssetBulkUploadModal from "@/components/AssetBulkUploadModal";
+import {
+  Plus,
+  Package,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  AlertTriangle,
+  Upload,
+  Download,
+  ChevronDown,
+} from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
+
+const STATUS_COLORS: Record<string, string> = {
+  available: "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300",
+  assigned: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
+  in_repair: "bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300",
+  retired: "bg-muted text-muted-foreground",
+  lost: "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300",
+  damaged: "bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300",
+};
+
+const CONDITION_COLORS: Record<string, string> = {
+  new: "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
+  good: "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300",
+  fair: "bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300",
+  poor: "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300",
+};
+
+const STATUSES = ["available", "assigned", "in_repair", "retired", "lost", "damaged"];
+const CONDITIONS = ["new", "good", "fair", "poor"];
+
+export default function AssetListPage() {
+  const { t } = useTranslation();
+  // #1531 — Seed `statusFilter` from ?status= so deep-links from the Asset
+  // Dashboard top cards land on a pre-filtered list instead of showing every
+  // asset. Whitelisted against known values so a bad URL doesn't wedge the
+  // filter UI into an unlisted state.
+  const [searchParams] = useSearchParams();
+  const initialStatus = (() => {
+    const raw = searchParams.get("status") || "";
+    return ["available", "assigned", "in_repair", "retired", "lost", "damaged"].includes(raw) ? raw : "";
+  })();
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isHR = user && ["hr_admin", "org_admin", "super_admin"].includes(user.role);
+
+  // Close export dropdown on outside click so it behaves like every other
+  // menu in the app.
+  useEffect(() => {
+    if (!showExportMenu) return;
+    function onDocClick(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [showExportMenu]);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formCategoryId, setFormCategoryId] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formSerialNumber, setFormSerialNumber] = useState("");
+  const [formBrand, setFormBrand] = useState("");
+  const [formModel, setFormModel] = useState("");
+  const [formPurchaseDate, setFormPurchaseDate] = useState("");
+  const [formPurchaseCost, setFormPurchaseCost] = useState("");
+  const [formWarrantyExpiry, setFormWarrantyExpiry] = useState("");
+  const [formCondition, setFormCondition] = useState("new");
+  const [formLocation, setFormLocation] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+
+  const { data: categories } = useQuery({
+    queryKey: ["asset-categories"],
+    queryFn: () => api.get("/assets/categories").then((r) => r.data.data),
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["assets", page, statusFilter, categoryFilter, search],
+    queryFn: () =>
+      api
+        .get("/assets", {
+          params: {
+            page,
+            per_page: 20,
+            ...(statusFilter && { status: statusFilter }),
+            ...(categoryFilter && { category_id: Number(categoryFilter) }),
+            ...(search && { search }),
+          },
+        })
+        .then((r) => r.data),
+  });
+
+  const createAsset = useMutation({
+    mutationFn: (payload: object) =>
+      api.post("/assets", payload).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      setShowForm(false);
+      resetForm();
+    },
+  });
+
+  function resetForm() {
+    setFormName("");
+    setFormCategoryId("");
+    setFormDescription("");
+    setFormSerialNumber("");
+    setFormBrand("");
+    setFormModel("");
+    setFormPurchaseDate("");
+    setFormPurchaseCost("");
+    setFormWarrantyExpiry("");
+    setFormCondition("new");
+    setFormLocation("");
+    setFormNotes("");
+  }
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formPurchaseDate && formWarrantyExpiry && formWarrantyExpiry < formPurchaseDate) {
+      showToast("error", t("assets.list.warrantyBeforePurchase"));
+      return;
+    }
+    await createAsset.mutateAsync({
+      name: formName,
+      category_id: formCategoryId ? Number(formCategoryId) : null,
+      description: formDescription || null,
+      serial_number: formSerialNumber || null,
+      brand: formBrand || null,
+      model: formModel || null,
+      purchase_date: formPurchaseDate || null,
+      purchase_cost: formPurchaseCost ? Number(formPurchaseCost) : null,
+      warranty_expiry: formWarrantyExpiry || null,
+      condition_status: formCondition,
+      location_name: formLocation || null,
+      notes: formNotes || null,
+    });
+  };
+
+  const assets = data?.data || [];
+  const meta = data?.meta;
+
+  // Client-side CSV export of the currently-filtered list. We already have
+  // every visible row in memory (React Query's cache), so a server round-
+  // trip would just be wasted latency. Quotes and commas in values are
+  // escaped per RFC 4180.
+  function exportCsv() {
+    const headers = [
+      "asset_tag",
+      "name",
+      "category",
+      "status",
+      "condition",
+      "assigned_to",
+      "serial_number",
+      "brand",
+      "model",
+      "location",
+      "purchase_date",
+      "purchase_cost_paise",
+      "warranty_expiry",
+    ];
+    const esc = (val: unknown): string => {
+      if (val === null || val === undefined) return "";
+      const s = String(val);
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const rows = assets.map((a: any) =>
+      [
+        a.asset_tag,
+        a.name,
+        a.category_name || "",
+        a.status,
+        a.condition_status,
+        a.assigned_to_name || "",
+        a.serial_number || "",
+        a.brand || "",
+        a.model || "",
+        a.location_name || "",
+        a.purchase_date ? String(a.purchase_date).slice(0, 10) : "",
+        a.purchase_cost ?? "",
+        a.warranty_expiry ? String(a.warranty_expiry).slice(0, 10) : "",
+      ]
+        .map(esc)
+        .join(","),
+    );
+    const csv = [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `assets-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  }
+
+  // PDF export hits the backend so the full filtered set is rendered server-
+  // side (respecting the same filters as the list view). The response is an
+  // HTML-as-PDF stream — no PDF library required, works in every browser's
+  // print-to-PDF pipeline.
+  async function exportPdf() {
+    setShowExportMenu(false);
+    try {
+      const res = await api.get("/assets/export", {
+        params: {
+          format: "pdf",
+          ...(statusFilter && { status: statusFilter }),
+          ...(categoryFilter && { category_id: Number(categoryFilter) }),
+          ...(search && { search }),
+        },
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `asset-report-${new Date().toISOString().slice(0, 10)}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      showToast("error", err?.response?.data?.error?.message || t("assets.list.exportPdfFailed"));
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("assets.list.title")}</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">{t("assets.list.subtitle")}</p>
+        </div>
+        {isHR && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Export dropdown — CSV is client-side from the in-memory list,
+                PDF is a server round-trip that respects the same filters. */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setShowExportMenu((v) => !v)}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted text-[13px] font-medium"
+              >
+                <Download className="h-4 w-4" />
+                {t("assets.list.export")}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-card rounded-md shadow-lg border border-border z-40">
+                  <button
+                    onClick={exportCsv}
+                    className="w-full text-left px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-t-md"
+                  >
+                    {t("assets.list.exportCsv")}
+                  </button>
+                  <button
+                    onClick={exportPdf}
+                    className="w-full text-left px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-b-md border-t border-border"
+                  >
+                    {t("assets.list.exportPdf")}
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowBulkUpload(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted text-[13px] font-medium"
+            >
+              <Upload className="h-4 w-4" />
+              {t("assets.list.bulkUpload")}
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700 transition-colors text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" />
+              {t("assets.list.addAsset")}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder={t("assets.list.searchPlaceholder")}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="bg-card text-foreground w-full pl-10 pr-4 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+        >
+          <option value="">{t("assets.list.allStatuses")}</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{t(`assets.list.status.${s}`)}</option>
+          ))}
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+          className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+        >
+          <option value="">{t("assets.list.allCategories")}</option>
+          {(categories || []).map((c: any) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-48">
+          <div className="text-muted-foreground">{t("assets.list.loading")}</div>
+        </div>
+      ) : assets.length === 0 ? (
+        <div className="text-center py-16">
+          <Package className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+          <p className="text-muted-foreground">{t("assets.list.empty")}</p>
+        </div>
+      ) : (
+        <div className="bg-card rounded-lg border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted border-b border-border">
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colTag")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colName")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colCategory")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colStatus")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colAssignedTo")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colCondition")}</th>
+                  <th className="text-left px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("assets.list.colWarranty")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assets.map((asset: any) => {
+                  const warrantyExpired = asset.warranty_expiry && new Date(asset.warranty_expiry) < new Date();
+                  return (
+                    <tr key={asset.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                      <td className="px-4 py-2.5">
+                        <Link to={`/assets/${asset.id}`} className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
+                          {asset.asset_tag}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-foreground">{asset.name}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{asset.category_name || "-"}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium ${STATUS_COLORS[asset.status] || "bg-muted"}`}>
+                          {t(`assets.list.status.${asset.status}`, { defaultValue: asset.status.replace(/_/g, " ") })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{asset.assigned_to_name || "-"}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium ${CONDITION_COLORS[asset.condition_status] || "bg-muted"}`}>
+                          {t(`assets.list.condition.${asset.condition_status}`, { defaultValue: asset.condition_status })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {asset.warranty_expiry ? (
+                          <span className={`flex items-center gap-1 ${warrantyExpired ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                            {warrantyExpired && <AlertTriangle className="h-3 w-3" />}
+                            {new Date(asset.warranty_expiry).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {meta && meta.total_pages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              {/* #1534 — Show the per-page count alongside the total. Previously
+                  only "Page N of M (T total)" was rendered, so admins couldn't
+                  tell how many rows were in view. */}
+              <p className="text-[13px] tabular-nums text-muted-foreground">
+                {t("assets.list.showing", { shown: assets.length, total: meta.total, page: meta.page, total_pages: meta.total_pages })}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(meta.total_pages, p + 1))}
+                  disabled={page === meta.total_pages}
+                  className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Asset Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">{t("assets.list.addModalTitle")}</h2>
+              <button onClick={() => setShowForm(false)} className="p-1 rounded hover:bg-muted">
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+            <form onSubmit={handleCreate} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldName")} *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder={t("assets.list.namePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldCategory")}</label>
+                  <select
+                    value={formCategoryId}
+                    onChange={(e) => setFormCategoryId(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="">{t("assets.list.selectCategory")}</option>
+                    {(categories || []).map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldSerialNumber")}</label>
+                  <input
+                    type="text"
+                    value={formSerialNumber}
+                    onChange={(e) => setFormSerialNumber(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldBrand")}</label>
+                  <input
+                    type="text"
+                    value={formBrand}
+                    onChange={(e) => setFormBrand(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldModel")}</label>
+                  <input
+                    type="text"
+                    value={formModel}
+                    onChange={(e) => setFormModel(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldCondition")}</label>
+                  <select
+                    value={formCondition}
+                    onChange={(e) => setFormCondition(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    {CONDITIONS.map((c) => (
+                      <option key={c} value={c}>{t(`assets.list.condition.${c}`)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldPurchaseDate")}</label>
+                  <input
+                    type="date"
+                    value={formPurchaseDate}
+                    onChange={(e) => setFormPurchaseDate(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldPurchaseCost")}</label>
+                  <div className="flex items-stretch">
+                    <span className="inline-flex items-center px-3 py-2 rounded-l-md border border-r-0 border-border bg-muted text-sm text-muted-foreground">
+                      ₹ INR
+                    </span>
+                    <input
+                      type="number"
+                      value={formPurchaseCost}
+                      onChange={(e) => setFormPurchaseCost(e.target.value)}
+                      className="bg-card text-foreground flex-1 min-w-0 px-3 py-2 border border-border rounded-r-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      placeholder={t("assets.list.costPlaceholder")}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{t("assets.list.costHint")}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldWarrantyExpiry")}</label>
+                  <input
+                    type="date"
+                    value={formWarrantyExpiry}
+                    onChange={(e) => setFormWarrantyExpiry(e.target.value)}
+                    min={formPurchaseDate || undefined}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldLocation")}</label>
+                  <input
+                    type="text"
+                    value={formLocation}
+                    onChange={(e) => setFormLocation(e.target.value)}
+                    className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder={t("assets.list.locationPlaceholder")}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldDescription")}</label>
+                <textarea
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  rows={2}
+                  className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">{t("assets.list.fieldNotes")}</label>
+                <textarea
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  rows={2}
+                  className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-md hover:bg-muted"
+                >
+                  {t("assets.list.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={createAsset.isPending}
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {createAsset.isPending ? t("assets.list.creating") : t("assets.list.create")}
+                </button>
+              </div>
+              {createAsset.isError && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {(createAsset.error as any)?.response?.data?.error?.message || t("assets.list.createFailed")}
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showBulkUpload && (
+        <AssetBulkUploadModal onClose={() => setShowBulkUpload(false)} />
+      )}
+    </div>
+  );
+}

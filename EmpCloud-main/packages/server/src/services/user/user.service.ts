@@ -1,0 +1,1558 @@
+// =============================================================================
+// EMP CLOUD — User Service
+// =============================================================================
+
+import { getDB } from "../../db/connection.js";
+import { hashPassword, randomHex, hashToken } from "../../utils/crypto.js";
+import { ConflictError, NotFoundError, ValidationError, ForbiddenError } from "../../utils/errors.js";
+import { TOKEN_DEFAULTS } from "@empcloud/shared";
+import {
+  autoAssignPayrollSeat,
+  checkFreeTierUserLimit,
+  hasAnyPaidSubscription,
+} from "../subscription/subscription.service.js";
+import { sendInvitationEmail } from "../email/email.service.js";
+import type { CreateUserInput, UpdateUserInput, InviteUserInput, UserPublic } from "@empcloud/shared";
+import * as nasService from "../nas/nas.service.js";
+import { logger } from "../../utils/logger.js";
+import fs from "fs";
+import path from "path";
+
+/** Strip sensitive fields from user records before sending to client */
+function sanitizeUser(user: any): UserPublic {
+  const { password, password_hash, token_hash, reset_token, ...safe } = user;
+  return safe;
+}
+
+export async function listUsers(orgId: number, params?: { page?: number; perPage?: number; search?: string; include_inactive?: boolean }) {
+  const db = getDB();
+  const page = params?.page || 1;
+  const perPage = params?.perPage || 20;
+
+  let query = db("users").where({ organization_id: orgId });
+
+  // Never show super_admin in org user lists — they are platform-level accounts
+  query = query.where("role", "!=", "super_admin");
+
+  // #1021 — Only show active employees by default
+  if (!params?.include_inactive) {
+    query = query.where("status", 1);
+  }
+
+  if (params?.search) {
+    const s = `%${params.search}%`;
+    query = query.where(function () {
+      this.where("first_name", "like", s)
+        .orWhere("last_name", "like", s)
+        .orWhere("email", "like", s)
+        .orWhere("emp_code", "like", s)
+        .orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [s]);
+    });
+  }
+
+  const [{ count }] = await query.clone().count("* as count");
+  const users = await query
+    .select()
+    .orderBy("status", "desc")
+    .orderBy("created_at", "desc")
+    .limit(perPage)
+    .offset((page - 1) * perPage);
+
+  return {
+    users: users.map(sanitizeUser),
+    total: Number(count),
+  };
+}
+
+export async function getUser(orgId: number, userId: number): Promise<UserPublic> {
+  const db = getDB();
+  const user = await db("users").where({ id: userId, organization_id: orgId }).first();
+  if (!user) throw new NotFoundError("User");
+
+  // Attach the list of additional managers (from user_additional_managers
+  // junction table) so UI pages can show "co-managers" alongside the
+  // primary reporting_manager_id. Each entry is a thin snapshot of the
+  // manager user — enough to render, not enough to leak.
+  const additionalManagers = await db("user_additional_managers as uam")
+    .join("users as u", "uam.manager_id", "u.id")
+    .where({ "uam.user_id": userId, "u.organization_id": orgId })
+    .select(
+      "u.id",
+      "u.first_name",
+      "u.last_name",
+      "u.email",
+      "u.emp_code",
+      "u.designation",
+    );
+
+  return { ...sanitizeUser(user), additional_managers: additionalManagers } as UserPublic;
+}
+
+export async function createUser(orgId: number, data: CreateUserInput): Promise<UserPublic> {
+  const db = getDB();
+
+  // --- Free-tier user limit check (#1015) ---
+  await checkFreeTierUserLimit(orgId);
+
+  // #1013 — Check org seat limit before adding user. Skip when the org has
+  // any active paid subscription — total_allowed_user_count is set to 10 at
+  // org creation and never re-synced from billing, so paid orgs that grew
+  // past 10 users were 403'd on every new user add.
+  const org = await db("organizations").where({ id: orgId }).first();
+  if (org && org.total_allowed_user_count > 0 && org.current_user_count >= org.total_allowed_user_count) {
+    const isPaid = await hasAnyPaidSubscription(orgId);
+    if (!isPaid) {
+      throw new ForbiddenError(
+        `Organization has reached its user limit (${org.current_user_count}/${org.total_allowed_user_count}). Upgrade your subscription to add more users.`,
+      );
+    }
+  }
+
+  const existing = await db("users").where({ email: data.email }).first();
+  if (existing) throw new ConflictError("Email already in use");
+
+  // Validate employee_code uniqueness within org
+  if (data.emp_code) {
+    const existingCode = await db("users")
+      .where({ organization_id: orgId, emp_code: data.emp_code })
+      .first();
+    if (existingCode) throw new ConflictError("Employee code already in use within this organization");
+  }
+
+  // Validate date_of_birth — must be a valid past date, employee must be at least 18
+  if (data.date_of_birth) {
+    const dob = new Date(data.date_of_birth);
+    const now = new Date();
+    if (isNaN(dob.getTime())) {
+      throw new ValidationError("Invalid date of birth format");
+    }
+    if (dob > now) {
+      throw new ValidationError("Date of birth cannot be in the future");
+    }
+    if (dob.getFullYear() < 1900) {
+      throw new ValidationError("Invalid date of birth");
+    }
+    const age = now.getFullYear() - dob.getFullYear();
+    const monthDiff = now.getMonth() - dob.getMonth();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate()) ? age - 1 : age;
+    if (actualAge < 18) throw new ValidationError("Employee must be at least 18 years old");
+  }
+
+  // Validate date_of_exit — must be after date_of_joining
+  if ((data as any).date_of_exit) {
+    const joinDate = data.date_of_joining || new Date().toISOString().slice(0, 10);
+    const exitMs = new Date(String((data as any).date_of_exit)).getTime();
+    const joinMs = new Date(String(joinDate)).getTime();
+    if (!isNaN(exitMs) && !isNaN(joinMs) && exitMs <= joinMs) {
+      throw new ValidationError("Date of exit must be after date of joining");
+    }
+  }
+
+  // Validate self-manager
+  // (cannot validate at create time since ID doesn't exist yet, but validate reporting_manager exists)
+  if (data.reporting_manager_id) {
+    const manager = await db("users").where({ id: data.reporting_manager_id, organization_id: orgId, status: 1 }).first();
+    if (!manager) data.reporting_manager_id = null as any;
+  }
+
+  const passwordHash = data.password ? await hashPassword(data.password) : null;
+
+  // Validate department_id exists in this org
+  let departmentId = data.department_id || null;
+  if (departmentId) {
+    const dept = await db("organization_departments")
+      .where({ id: departmentId, organization_id: orgId })
+      .first();
+    if (!dept) departmentId = null;
+  }
+
+  // Validate location_id exists in this org
+  let locationId = data.location_id || null;
+  if (locationId) {
+    const loc = await db("organization_locations")
+      .where({ id: locationId, organization_id: orgId })
+      .first();
+    if (!loc) locationId = null;
+  }
+
+  // Rule: Cannot hire more than department position headcount
+  if (departmentId) {
+    const positions = await db("positions")
+      .where({ organization_id: orgId, department_id: departmentId })
+      .whereIn("status", ["active", "filled"])
+      .select(
+        db.raw("COALESCE(SUM(headcount_budget), 0) as total_budget"),
+        db.raw("COALESCE(SUM(headcount_filled), 0) as total_filled"),
+      )
+      .first();
+
+    if (positions && Number(positions.total_budget) > 0) {
+      const [{ count: activeInDept }] = await db("users")
+        .where({ organization_id: orgId, department_id: departmentId, status: 1 })
+        .count("* as count");
+
+      if (Number(activeInDept) >= Number(positions.total_budget)) {
+        throw new ValidationError(
+          `Department headcount limit reached (${activeInDept}/${positions.total_budget}). Cannot add more employees.`,
+        );
+      }
+    }
+  }
+
+  // Calculate probation end date (6 months from join date)
+  const joinDate = data.date_of_joining || new Date().toISOString().slice(0, 10);
+  const probationEnd = new Date(joinDate);
+  probationEnd.setMonth(probationEnd.getMonth() + 6);
+  const probationEndDate = probationEnd.toISOString().slice(0, 10);
+
+  const nowTs = new Date();
+  const [id] = await db("users").insert({
+    organization_id: orgId,
+    first_name: data.first_name,
+    last_name: data.last_name,
+    email: data.email,
+    password: passwordHash,
+    password_changed_at: passwordHash ? nowTs : null,
+    role: data.role || "employee",
+    emp_code: data.emp_code || null,
+    contact_number: data.contact_number || null,
+    date_of_birth: data.date_of_birth || null,
+    gender: data.gender || null,
+    date_of_joining: joinDate,
+    designation: data.designation || null,
+    department_id: departmentId,
+    location_id: locationId,
+    reporting_manager_id: data.reporting_manager_id || null,
+    employment_type: data.employment_type || "full_time",
+    probation_end_date: probationEndDate,
+    probation_status: "on_probation",
+    status: 1,
+    created_at: nowTs,
+    updated_at: nowTs,
+  });
+
+  // Update org user count
+  await db("organizations")
+    .where({ id: orgId })
+    .increment("current_user_count", 1);
+
+  // Default-enable emp-payroll module access. Best-effort — failures
+  // log a warning but never block user creation. Mirrors migration 060
+  // for the steady state.
+  await autoAssignPayrollSeat(orgId, id, id);
+
+  return getUser(orgId, id);
+}
+
+export async function updateUser(orgId: number, userId: number, data: UpdateUserInput): Promise<UserPublic> {
+  const db = getDB();
+  const user = await db("users").where({ id: userId, organization_id: orgId }).first();
+  if (!user) throw new NotFoundError("User");
+
+  // Whitelist allowed fields — prevent mass assignment attacks
+  const allowed: Record<string, unknown> = {};
+  const SAFE_FIELDS = ["first_name", "last_name", "phone", "designation", "department_id", "location_id", "reporting_manager_id", "date_of_birth", "gender", "emp_code", "employee_code", "date_of_joining", "date_of_exit", "contact_number", "employment_type", "role"];
+  for (const key of SAFE_FIELDS) {
+    if ((data as Record<string, unknown>)[key] !== undefined) {
+      allowed[key] = (data as Record<string, unknown>)[key];
+    }
+  }
+  // Map employee_code -> emp_code (DB column)
+  if (allowed.employee_code !== undefined && allowed.emp_code === undefined) {
+    allowed.emp_code = allowed.employee_code;
+    delete allowed.employee_code;
+  }
+  // Strip HTML and trim whitespace from text fields
+  for (const key of ["first_name", "last_name", "designation"]) {
+    if (typeof allowed[key] === "string") {
+      allowed[key] = (allowed[key] as string).replace(/<[^>]*>/g, "").trim();
+      // Reject empty or whitespace-only names with a validation error
+      if ((key === "first_name" || key === "last_name") && !(allowed[key] as string)) {
+        throw new ValidationError(`${key.replace("_", " ")} cannot be empty or whitespace only`);
+      }
+    }
+  }
+  // Normalise blank emp_code / contact_number / address / gender to NULL.
+  // Critical for emp_code because migration 054's
+  // UNIQUE(organization_id, emp_code) treats '' as a value and fires
+  // "Duplicate entry '1-'" the moment two users in an org both clear
+  // their code. Same hygiene for the other plain-text columns so the
+  // DB doesn't end up mixing NULLs and empty strings for the same
+  // "user didn't enter anything" state.
+  for (const key of ["emp_code", "contact_number", "address", "gender"]) {
+    if (typeof allowed[key] === "string") {
+      const trimmed = (allowed[key] as string).trim();
+      allowed[key] = trimmed === "" ? null : trimmed;
+    }
+  }
+  // Map phone -> contact_number (DB column)
+  if (allowed.phone !== undefined && allowed.contact_number === undefined) {
+    allowed.contact_number = allowed.phone;
+    delete allowed.phone;
+  }
+  // Validate contact_number — digits, spaces, +, -, () only
+  if (allowed.contact_number !== undefined) {
+    const phone = String(allowed.contact_number);
+    if (!/^[+\d\s\-()]{0,20}$/.test(phone)) {
+      throw new ValidationError("Invalid phone number format");
+    }
+  }
+  // Validate date_of_birth — must be a valid past date, employee must be at least 18
+  if (allowed.date_of_birth !== undefined && allowed.date_of_birth !== null) {
+    const dob = new Date(allowed.date_of_birth as string);
+    const now = new Date();
+    if (isNaN(dob.getTime())) {
+      throw new ValidationError("Invalid date of birth format");
+    }
+    if (dob > now) {
+      throw new ValidationError("Date of birth cannot be in the future");
+    }
+    if (dob.getFullYear() < 1900) {
+      throw new ValidationError("Invalid date of birth");
+    }
+    const age = now.getFullYear() - dob.getFullYear();
+    const monthDiff = now.getMonth() - dob.getMonth();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate()) ? age - 1 : age;
+    if (actualAge < 18) {
+      throw new ValidationError("Employee must be at least 18 years old");
+    }
+  }
+  // Validate date_of_joining — must be a valid date
+  if (allowed.date_of_joining !== undefined && allowed.date_of_joining !== null) {
+    const doj = new Date(allowed.date_of_joining as string);
+    if (isNaN(doj.getTime())) {
+      throw new ValidationError("Invalid date_of_joining format");
+    }
+  }
+  // Validate gender — enum
+  if (allowed.gender !== undefined && !["male", "female", "other", "prefer_not_to_say"].includes(String(allowed.gender))) {
+    delete allowed.gender;
+  }
+  // Validate department_id — must exist in organization_departments for this org
+  if (allowed.department_id !== undefined) {
+    const deptId = Number(allowed.department_id);
+    if (deptId) {
+      const dept = await db("organization_departments")
+        .where({ id: deptId, organization_id: orgId })
+        .first();
+      if (!dept) {
+        delete allowed.department_id; // department doesn't exist in this org
+      }
+    }
+  }
+  // Validate location_id — must exist in organization_locations for this org
+  if (allowed.location_id !== undefined) {
+    const locId = Number(allowed.location_id);
+    if (locId) {
+      const loc = await db("organization_locations")
+        .where({ id: locId, organization_id: orgId })
+        .first();
+      if (!loc) {
+        delete allowed.location_id; // location doesn't exist in this org
+      }
+    }
+  }
+  // Validate reporting_manager_id — cannot be self, must exist in same org
+  if (allowed.reporting_manager_id !== undefined) {
+    const mgId = Number(allowed.reporting_manager_id);
+    if (mgId === userId) {
+      throw new ValidationError("Employee cannot be their own reporting manager");
+    } else if (mgId) {
+      // Check for circular chain (A->B->A)
+      const manager = await db("users").where({ id: mgId, organization_id: orgId, status: 1 }).first();
+      if (!manager) {
+        throw new ValidationError("Reporting manager does not exist in this organization");
+      } else if (manager.reporting_manager_id === userId) {
+        throw new ValidationError("Circular reporting chain detected");
+      }
+    }
+  }
+
+  // Validate emp_code uniqueness within org (exclude self)
+  if (allowed.emp_code !== undefined && allowed.emp_code !== null && allowed.emp_code !== "") {
+    const existingCode = await db("users")
+      .where({ organization_id: orgId, emp_code: String(allowed.emp_code) })
+      .whereNot({ id: userId })
+      .first();
+    if (existingCode) {
+      throw new ConflictError("Employee code already in use within this organization");
+    }
+  }
+
+  // Validate date_of_exit — must be after date_of_joining
+  if (allowed.date_of_exit !== undefined && allowed.date_of_exit !== null) {
+    const exitMs = new Date(String(allowed.date_of_exit)).getTime();
+    // Get joining date from update payload or existing DB record
+    let joinMs = 0;
+    if (allowed.date_of_joining) {
+      joinMs = new Date(String(allowed.date_of_joining)).getTime();
+    } else if (user.date_of_joining) {
+      // MySQL returns Date object or string — handle both
+      joinMs = new Date(user.date_of_joining).getTime();
+    }
+
+    if (isNaN(exitMs)) {
+      throw new ValidationError("Invalid date_of_exit format");
+    } else if (joinMs > 0 && exitMs <= joinMs) {
+      throw new ValidationError("Date of exit must be after date of joining");
+    }
+
+    // Rule: Notice period enforcement
+    // Check employee_profiles for notice_period_days; if set, date_of_exit must be
+    // at least that many days from today.
+    const profile = await db("employee_profiles")
+      .where({ user_id: userId, organization_id: orgId })
+      .select("notice_period_days")
+      .first();
+    if (profile && profile.notice_period_days && profile.notice_period_days > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const exitDate = new Date(String(allowed.date_of_exit));
+      exitDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((exitDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < profile.notice_period_days) {
+        throw new ValidationError(
+          `Notice period of ${profile.notice_period_days} days is required. Exit date must be at least ${profile.notice_period_days} days from today (${diffDays} days provided).`,
+        );
+      }
+    }
+  }
+
+  // Validate role — must be one of the 5 valid roles
+  if (allowed.role !== undefined) {
+    const validRoles = ["employee", "manager", "hr_admin", "org_admin", "super_admin"];
+    if (!validRoles.includes(String(allowed.role))) {
+      throw new ValidationError("Invalid role. Must be one of: employee, manager, hr_admin, org_admin, super_admin");
+    }
+  }
+
+  if (Object.keys(allowed).length > 0) {
+    await db("users").where({ id: userId, organization_id: orgId }).update({ ...allowed, updated_at: new Date() });
+  }
+  return getUser(orgId, userId);
+}
+
+/**
+ * Admin-initiated password reset for another user in the same org.
+ * Deliberately kept separate from updateUser() which has a strict field
+ * whitelist that excludes `password` to prevent mass-assignment. Callers
+ * must be org_admin (enforced at the route layer). Fails if the target
+ * is a super_admin and the actor is not.
+ *
+ * The caller should NOT be able to reset their own password through this
+ * endpoint — self-serve password change has its own flow with current
+ * password verification.
+ */
+export async function resetUserPassword(
+  orgId: number,
+  targetUserId: number,
+  actorUserId: number,
+  actorRole: string,
+  newPassword: string,
+): Promise<void> {
+  const db = getDB();
+
+  if (targetUserId === actorUserId) {
+    throw new ForbiddenError(
+      "Cannot reset your own password from the admin screen. Use the account settings page instead.",
+    );
+  }
+
+  const target = await db("users")
+    .where({ id: targetUserId, organization_id: orgId })
+    .first();
+  if (!target) throw new NotFoundError("User");
+
+  // Privilege guard: only a super_admin can reset another super_admin's password.
+  if (target.role === "super_admin" && actorRole !== "super_admin") {
+    throw new ForbiddenError("Only super admins can reset a super admin's password");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await db("users")
+    .where({ id: targetUserId, organization_id: orgId })
+    .update({
+      password: passwordHash,
+      password_changed_at: new Date(),
+      updated_at: new Date(),
+    });
+}
+
+// Hard-delete a user. Frees the email so the same address can be re-added
+// later (the previous soft-delete left a row with status=2 which kept the
+// unique email constraint locked).
+//
+// FK landscape (audited 2026-04-27 across migrations 001–047):
+//   • Most child tables declare ON DELETE CASCADE / SET NULL — MySQL handles
+//     them automatically when the user row goes away.
+//   • A handful of `created_by` / `assigned_by` / `invited_by` columns are
+//     NOT NULL with no ON DELETE clause (default RESTRICT). These would
+//     block the DELETE with a FK constraint error, so we reassign them to
+//     the actor performing the delete.
+//   • A few columns reference users by name only (no DB constraint). Those
+//     get explicit NULL'd in the same transaction so the orphan rows don't
+//     point at a missing user_id.
+//   • `users.reporting_manager_id` is a self-FK with default RESTRICT, so
+//     direct reports must have their manager unset before the row dies.
+//
+// `actorUserId` is the admin performing the delete and inherits ownership
+// of any historical "created by" rows that can't be deleted.
+export async function deactivateUser(
+  orgId: number,
+  userId: number,
+  actorUserId?: number,
+): Promise<void> {
+  const db = getDB();
+  const user = await db("users").where({ id: userId, organization_id: orgId }).first();
+  if (!user) throw new NotFoundError("User");
+
+  // Rule: Cannot delete employee with pending items — these would silently
+  // disappear via CASCADE and we'd lose the audit trail / accountability.
+  const pendingItems: string[] = [];
+
+  const [{ count: pendingLeaves }] = await db("leave_applications")
+    .where({ organization_id: orgId, user_id: userId, status: "pending" })
+    .count("* as count");
+  if (Number(pendingLeaves) > 0) {
+    pendingItems.push(`${pendingLeaves} pending leave application(s)`);
+  }
+
+  const [{ count: assignedAssets }] = await db("assets")
+    .where({ organization_id: orgId, assigned_to: userId, status: "assigned" })
+    .count("* as count");
+  if (Number(assignedAssets) > 0) {
+    pendingItems.push(`${assignedAssets} assigned asset(s)`);
+  }
+
+  const [{ count: openTickets }] = await db("helpdesk_tickets")
+    .where({ organization_id: orgId, raised_by: userId })
+    .whereIn("status", ["open", "in_progress", "awaiting_response"])
+    .count("* as count");
+  if (Number(openTickets) > 0) {
+    pendingItems.push(`${openTickets} open helpdesk ticket(s)`);
+  }
+
+  if (pendingItems.length > 0) {
+    throw new ValidationError(
+      `Cannot delete employee with pending items: ${pendingItems.join(", ")}. Please resolve these first.`
+    );
+  }
+
+  // Capture the biometric face_url BEFORE the transaction — the cascade
+  // DELETE wipes biometric_legacy_credentials, so the NAS path is
+  // unrecoverable afterwards. The actual NAS delete runs AFTER the
+  // transaction commits, so a rolled-back user delete never removes the
+  // file for a user who still exists. Legacy local-disk face files (no
+  // `nas:` prefix) are left alone here — they live on the API server's
+  // filesystem and the kiosk infra still references them.
+  const biometric = await db("biometric_legacy_credentials")
+    .where({ user_id: userId })
+    .first("face_url");
+  const faceUrl: string | null = biometric?.face_url ?? null;
+
+  await db.transaction(async (trx) => {
+    await purgeUserHard(trx, orgId, userId, actorUserId);
+    await trx("organizations").where({ id: orgId }).decrement("current_user_count", 1);
+  });
+
+  // Post-commit NAS cleanup — best-effort. Failures here log a warning and
+  // leave an orphan image on NAS, but never block or undo the user delete
+  // (the user is already gone). An orphan file is recoverable by a janitor
+  // job; reversing a committed user delete is not.
+  if (faceUrl && faceUrl.startsWith("nas:")) {
+    const nasPath = faceUrl.slice(4);
+    try {
+      const deleted = await nasService.deleteFile(nasPath);
+      if (deleted) {
+        logger.info(`Deleted NAS face image for deleted user ${userId}`, { path: nasPath });
+      } else {
+        logger.warn(`NAS face image not found for deleted user ${userId}`, { path: nasPath });
+      }
+    } catch (err) {
+      logger.warn(
+        `Failed to delete NAS face image for deleted user ${userId}`,
+        { err: (err as Error)?.message, path: nasPath },
+      );
+    }
+  }
+
+  // Same pattern for the manually-uploaded profile photo. user.photo_path
+  // points at a file on the API server's local disk under uploads/photos/...,
+  // served by /api/v1/employees/:id/photo. Without this, the file lingers on
+  // disk forever once the user row is gone. user is loaded at the top of the
+  // function so user.photo_path is still in scope after the transaction.
+  if (user.photo_path) {
+    try {
+      const fullPath = path.join(process.cwd(), user.photo_path);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+        logger.info(`Deleted local photo file for deleted user ${userId}`, { path: user.photo_path });
+      }
+    } catch (err) {
+      logger.warn(
+        `Failed to delete local photo file for deleted user ${userId}`,
+        { err: (err as Error)?.message, path: user.photo_path },
+      );
+    }
+  }
+}
+
+// Strip all references to a user and DELETE the row. Caller is responsible
+// for the surrounding transaction and any business-rule guards (pending
+// leaves / assets / tickets). Used by both the user-facing delete endpoint
+// and migration 048 which purges legacy soft-deleted rows.
+async function purgeUserHard(
+  trx: import("knex").Knex.Transaction,
+  orgId: number,
+  userId: number,
+  actorUserId?: number,
+): Promise<void> {
+  // Pick a fallback owner for created_by reassignment when the caller
+  // didn't supply one (e.g. data-cleanup migration). First org_admin is the
+  // safest bet — every active org has at least one.
+  let reassignTo = actorUserId ?? null;
+  if (!reassignTo || reassignTo === userId) {
+    const fallback = await trx("users")
+      .where({ organization_id: orgId, role: "org_admin", status: 1 })
+      .whereNot({ id: userId })
+      .orderBy("id", "asc")
+      .first("id");
+    reassignTo = fallback?.id ?? null;
+  }
+
+  // 1. Self-FK: clear the manager pointer on this user's direct reports.
+  //    (RESTRICT by default, so MySQL would block the DELETE otherwise.)
+  await trx("users")
+    .where({ reporting_manager_id: userId })
+    .update({ reporting_manager_id: null });
+
+  // 2. created_by / assigned_by / invited_by — NOT NULL columns with no
+  //    cascade. Reassign so historical authorship survives the delete.
+  if (reassignTo) {
+    const reassignTargets: Array<{ table: string; column: string }> = [
+      { table: "org_module_seats",  column: "assigned_by" },
+      { table: "invitations",       column: "invited_by"  },
+      { table: "shift_assignments", column: "created_by"  },
+      { table: "announcements",     column: "created_by"  },
+      { table: "company_policies",  column: "created_by"  },
+      { table: "surveys",           column: "created_by"  },
+      { table: "positions",         column: "created_by"  },
+      { table: "headcount_plans",   column: "created_by"  },
+    ];
+    for (const { table, column } of reassignTargets) {
+      const exists = await trx.schema.hasTable(table);
+      if (!exists) continue;
+      await trx(table).where({ [column]: userId }).update({ [column]: reassignTo });
+    }
+  }
+
+  // 3. App-level user references with no FK constraint (won't block the
+  //    DELETE, but would leave dangling user_ids the app might dereference).
+  const nullableOrphans: Array<{ table: string; column: string }> = [
+    { table: "survey_responses",   column: "user_id"      },
+    { table: "headcount_plans",    column: "approved_by"  },
+    { table: "anonymous_feedback", column: "responded_by" },
+  ];
+  for (const { table, column } of nullableOrphans) {
+    const exists = await trx.schema.hasTable(table);
+    if (!exists) continue;
+    await trx(table).where({ [column]: userId }).update({ [column]: null });
+  }
+
+  // 4. Finally drop the user row. Cascading FKs handle the long tail
+  //    (leave_*, attendance_*, helpdesk_*, forum_*, biometric_*, etc.).
+  await trx("users").where({ id: userId }).delete();
+}
+
+// Exposed for migration 048 (legacy soft-deleted user cleanup). Not part of
+// the public service surface; route handlers should call deactivateUser.
+export { purgeUserHard as _purgeUserHard };
+
+// ---------------------------------------------------------------------------
+// Invitations
+// ---------------------------------------------------------------------------
+
+// #1647 — Placeholder invitations of the form `invite-NNNNNN@<domain>` were
+// inserted into a few tenants outside of the regular invite path (e.g. via a
+// bulk seed script). They have no real recipient — admins can't identify or
+// re-send them — so hide them from the panel. Migration 052 deletes the
+// existing rows; this filter prevents any stragglers from leaking into the
+// UI even before the migration runs.
+const PLACEHOLDER_INVITE_LIKE = "invite-______@%";
+
+export async function listInvitations(orgId: number, status: string = "pending") {
+  const db = getDB();
+  return db("invitations")
+    .where({ organization_id: orgId, status })
+    .whereNot("email", "like", PLACEHOLDER_INVITE_LIKE)
+    .select("id", "email", "role", "status", "created_at", "expires_at")
+    .orderBy("created_at", "desc");
+}
+
+export async function inviteUser(orgId: number, invitedBy: number, data: InviteUserInput): Promise<{ token: string; invitation: object }> {
+  const db = getDB();
+
+  // #1013 — Check org seat limit before inviting user. Skip when the org
+  // has any active paid subscription — total_allowed_user_count is set to
+  // 10 at org creation and never re-synced from billing, so paid orgs
+  // that grew past 10 users were 403'd on every new invite ("230 active
+  // + 29 pending invites / 10 allowed") even though their billed plan
+  // covers the seats. The free-tier guard above already short-circuits
+  // genuine free orgs.
+  const org = await db("organizations").where({ id: orgId }).first();
+  if (org && org.total_allowed_user_count > 0) {
+    const [{ count: pendingInvitations }] = await db("invitations")
+      .where({ organization_id: orgId, status: "pending" })
+      .count("* as count");
+    const totalCommitted = org.current_user_count + Number(pendingInvitations);
+    if (totalCommitted >= org.total_allowed_user_count) {
+      const isPaid = await hasAnyPaidSubscription(orgId);
+      if (!isPaid) {
+        throw new ForbiddenError(
+          `Organization has reached its user limit (${org.current_user_count} active + ${pendingInvitations} pending invites / ${org.total_allowed_user_count} allowed). Upgrade your subscription to add more users.`,
+        );
+      }
+    }
+  }
+
+  const existing = await db("users").where({ email: data.email }).first();
+  if (existing) throw new ConflictError("User with this email already exists");
+
+  const pendingInvite = await db("invitations")
+    .where({ email: data.email, status: "pending" })
+    .first();
+  if (pendingInvite) throw new ConflictError("An invitation has already been sent to this email");
+
+  const token = randomHex(32);
+  const expiresAt = new Date(Date.now() + TOKEN_DEFAULTS.INVITATION_EXPIRY * 1000);
+
+  const [id] = await db("invitations").insert({
+    organization_id: orgId,
+    email: data.email,
+    role: data.role || "employee",
+    first_name: data.first_name || null,
+    last_name: data.last_name || null,
+    invited_by: invitedBy,
+    token_hash: hashToken(token),
+    status: "pending",
+    expires_at: expiresAt,
+    created_at: new Date(),
+  });
+
+  const invitation = await db("invitations").where({ id }).first();
+
+  // Fire-and-forget invitation email. We look up the inviter and org here
+  // (rather than forcing every caller to pass them in) so the existing
+  // call sites — which just pass orgId + invitedBy — keep working.
+  try {
+    const inviter = await db("users").where({ id: invitedBy }).first();
+    const orgRow = org || (await db("organizations").where({ id: orgId }).first());
+    const inviterName = inviter
+      ? `${inviter.first_name || ""} ${inviter.last_name || ""}`.trim() || inviter.email
+      : "An administrator";
+    void sendInvitationEmail({
+      to: data.email,
+      firstName: data.first_name || null,
+      orgName: orgRow?.name || "your organization",
+      invitedByName: inviterName,
+      role: data.role || "employee",
+      token,
+    });
+  } catch {
+    // never block the invite on email metadata lookup
+  }
+
+  return { token, invitation };
+}
+
+/**
+ * Resend a pending invitation: regenerate the token (so the old link is
+ * invalidated), refresh the expiry, and re-send the email. Only valid while
+ * the invitation is still in `pending` state — accepted/cancelled rows can't
+ * be resurrected this way.
+ */
+export async function resendInvitation(
+  orgId: number,
+  invitationId: number,
+  invitedBy: number,
+): Promise<{ resent: true; expires_at: Date; email: string }> {
+  const db = getDB();
+
+  const inv = await db("invitations")
+    .where({ id: invitationId, organization_id: orgId })
+    .first();
+  if (!inv) throw new NotFoundError("Invitation");
+  if (inv.status !== "pending") {
+    throw new ConflictError(`Cannot resend an invitation in '${inv.status}' state`);
+  }
+
+  const newToken = randomHex(32);
+  const newExpiresAt = new Date(Date.now() + TOKEN_DEFAULTS.INVITATION_EXPIRY * 1000);
+
+  await db("invitations").where({ id: invitationId }).update({
+    token_hash: hashToken(newToken),
+    expires_at: newExpiresAt,
+    updated_at: new Date(),
+  });
+
+  // Look up inviter + org for the email body. Failure here is non-fatal —
+  // the rotation already happened; if email metadata is gone we still want
+  // the new token / expiry to stick. Email-send failure is also non-fatal
+  // (mirrors inviteUser's behaviour above).
+  try {
+    const inviter = await db("users").where({ id: invitedBy }).first();
+    const org = await db("organizations").where({ id: orgId }).first();
+    const inviterName = inviter
+      ? `${inviter.first_name || ""} ${inviter.last_name || ""}`.trim() || inviter.email
+      : "An administrator";
+    void sendInvitationEmail({
+      to: inv.email,
+      firstName: inv.first_name || null,
+      orgName: org?.name || "your organization",
+      invitedByName: inviterName,
+      role: inv.role || "employee",
+      token: newToken,
+    });
+  } catch {
+    // never block the resend on email metadata lookup
+  }
+
+  return { resent: true, expires_at: newExpiresAt, email: inv.email };
+}
+
+/**
+ * Look up a user by email scoped to the requester's org. Powers the Invite
+ * modal's "prefill First/Last Name when an existing email is typed" flow.
+ *
+ * Always returns a typed result (never throws on missing) so the frontend
+ * can branch on a single boolean field. Returns minimal fields only —
+ * enough to prefill the Invite form, nothing sensitive.
+ */
+export async function lookupUserByEmail(
+  orgId: number,
+  email: string,
+): Promise<{
+  exists: boolean;
+  id?: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  role?: string;
+  status?: number;
+}> {
+  const db = getDB();
+  const cleaned = String(email || "").trim().toLowerCase();
+  if (!cleaned) return { exists: false };
+  const row = await db("users")
+    .whereRaw("LOWER(email) = ?", [cleaned])
+    .andWhere({ organization_id: orgId })
+    .select("id", "first_name", "last_name", "role", "status")
+    .first();
+  if (!row) return { exists: false };
+  return {
+    exists: true,
+    id: Number(row.id),
+    first_name: row.first_name ?? null,
+    last_name: row.last_name ?? null,
+    role: row.role,
+    status: Number(row.status),
+  };
+}
+
+/**
+ * Single-user variant of bulkInviteFromDirectory. Sends (or resends) an
+ * invitation to one existing employee from the directory page.
+ *
+ * The plain `inviteUser()` flow above blocks anyone whose email is already
+ * in the `users` table — fine for greenfield invites but useless for the
+ * Employee Directory case, where every row is by definition already in
+ * `users`. This function is the targeted equivalent of bulk-re-invite:
+ *   - if the user has a pending invitation → rotate the token + resend
+ *   - if not → create a fresh invitation row and send the email
+ *
+ * Idempotent: HR can click the row's Invite button repeatedly without
+ * tripping the unique-email constraint or the "already pending" check.
+ *
+ * Seat-limit: the user already exists, so no new seat is consumed and we
+ * deliberately skip the org seat check (matches bulkInviteFromDirectory's
+ * accounting where `password_changed_at IS NOT NULL` rows don't count).
+ */
+export async function inviteFromDirectory(
+  orgId: number,
+  invitedBy: number,
+  userId: number,
+): Promise<{ status: "invited" | "resent"; email: string; expires_at: Date }> {
+  const db = getDB();
+
+  const user = await db("users")
+    .where({ id: userId, organization_id: orgId })
+    .first();
+  if (!user) throw new NotFoundError("User");
+  if (!user.email) throw new ValidationError("This user has no email address to invite");
+
+  const token = randomHex(32);
+  const expiresAt = new Date(Date.now() + TOKEN_DEFAULTS.INVITATION_EXPIRY * 1000);
+
+  // Look for an existing pending invitation for this email (regardless of
+  // org — emails are globally unique on the invitations table by design,
+  // mirroring the users table).
+  const pending = await db("invitations")
+    .where({ email: user.email, status: "pending" })
+    .first();
+
+  let status: "invited" | "resent";
+  if (pending) {
+    await db("invitations").where({ id: pending.id }).update({
+      token_hash: hashToken(token),
+      expires_at: expiresAt,
+      updated_at: new Date(),
+      // Refresh role + invited_by in case HR changed them since the
+      // original invitation went out.
+      role: user.role || pending.role,
+      invited_by: invitedBy,
+    });
+    status = "resent";
+  } else {
+    await db("invitations").insert({
+      organization_id: orgId,
+      email: user.email,
+      role: user.role || "employee",
+      first_name: user.first_name || null,
+      last_name: user.last_name || null,
+      invited_by: invitedBy,
+      token_hash: hashToken(token),
+      status: "pending",
+      expires_at: expiresAt,
+      created_at: new Date(),
+    });
+    status = "invited";
+  }
+
+  // Fire-and-forget email — same pattern as inviteUser/resendInvitation.
+  // Failure here doesn't roll back the token rotation; HR can click again.
+  try {
+    const inviter = await db("users").where({ id: invitedBy }).first();
+    const org = await db("organizations").where({ id: orgId }).first();
+    const inviterName = inviter
+      ? `${inviter.first_name || ""} ${inviter.last_name || ""}`.trim() || inviter.email
+      : "An administrator";
+    void sendInvitationEmail({
+      to: user.email,
+      firstName: user.first_name || null,
+      orgName: org?.name || "your organization",
+      invitedByName: inviterName,
+      role: user.role || "employee",
+      token,
+    });
+  } catch {
+    // never block on email metadata lookup
+  }
+
+  return { status, email: user.email, expires_at: expiresAt };
+}
+
+/**
+ * Cancel a pending invitation. Marks the invitation row as `cancelled`
+ * (soft delete — keeps the audit trail) and, when the associated user
+ * has never activated (no password set), hard-deletes the user row too
+ * so HR doesn't end up with a phantom account they can't see anywhere.
+ *
+ * If the user HAS activated since the invitation went out (rare but
+ * possible — admin re-invited, user accepted on their own a different
+ * way), only the invitation is cancelled; the active account is left
+ * alone.
+ *
+ * Returns a summary so the UI can render a useful toast.
+ */
+export async function cancelInvitation(
+  orgId: number,
+  invitationId: number,
+): Promise<{ cancelled: true; email: string; user_deleted: boolean }> {
+  const db = getDB();
+
+  const inv = await db("invitations")
+    .where({ id: invitationId, organization_id: orgId })
+    .first();
+  if (!inv) throw new NotFoundError("Invitation");
+  if (inv.status !== "pending") {
+    throw new ConflictError(`Cannot cancel an invitation in '${inv.status}' state`);
+  }
+
+  let userDeleted = false;
+  await db.transaction(async (trx) => {
+    await trx("invitations").where({ id: invitationId }).update({
+      status: "cancelled",
+      updated_at: new Date(),
+    });
+
+    // Look up the matching user. We only delete when they've never
+    // activated — checking password_changed_at IS NULL guards against
+    // accidentally nuking a real, working account that happens to also
+    // have a stale invitation row attached.
+    const user = await trx("users")
+      .where({ email: inv.email, organization_id: orgId })
+      .first();
+    if (user && user.password_changed_at == null) {
+      // FK cleanup before the hard delete. The users table self-FK on
+      // reporting_manager_id has no ON DELETE clause, so MySQL defaults
+      // to RESTRICT — if anyone in the org has this user set as their
+      // manager (e.g. HR set the manager link before the invite was
+      // accepted), a raw DELETE would fail with FK violation. NULL
+      // those out first so the delete proceeds cleanly.
+      //
+      // Bucket-C `created_by` columns (announcements, policies, etc.)
+      // cannot reference a never-activated user — they require a logged-
+      // in actor — so no cleanup is needed for them. The other
+      // Bucket-A FKs to users (employee_profiles, attendance_records,
+      // leave_balances, etc.) all have ON DELETE CASCADE on this row's
+      // user_id and will clean themselves up.
+      //
+      // Not reusing deactivateUser() here because it runs its own
+      // transaction (no trx parameter), which would break the atomicity
+      // of cancel-invitation + user-removal that this flow guarantees.
+      await trx("users").where({ reporting_manager_id: user.id }).update({
+        reporting_manager_id: null,
+        updated_at: new Date(),
+      });
+      await trx("users").where({ id: user.id }).delete();
+      await trx("organizations")
+        .where({ id: orgId })
+        .decrement("current_user_count", 1);
+      userDeleted = true;
+    }
+  });
+
+  return { cancelled: true, email: inv.email, user_deleted: userDeleted };
+}
+
+/**
+ * Bulk invite every active user in this org who doesn't already have a
+ * pending invitation. By default, restricts to users who haven't set a
+ * password yet (the typical onboarding case). Pass
+ * `includeActivated: true` to also re-invite users who DO have a
+ * password — useful when HR wants a bulk-reset (e.g. post-migration).
+ * The token-based link lands on AcceptInvitationPage either way and
+ * overwrites whatever password the user had.
+ *
+ * Returns counts so the UI can render a useful summary toast and a per-row
+ * detail list for any failures.
+ */
+export async function bulkInviteFromDirectory(
+  orgId: number,
+  invitedBy: number,
+  options: { includeActivated?: boolean } = {},
+): Promise<{
+  total_eligible: number;
+  invited: number;
+  skipped: number;
+  results: Array<{ email: string; status: "invited" | "skipped" | "failed"; error?: string }>;
+}> {
+  const db = getDB();
+
+  // Active users in the org. By default we limit to users who haven't
+  // set a password yet (the typical onboarding case). When the caller
+  // opts in to includeActivated, we lift that filter so already-active
+  // employees also get a fresh invite link (effectively a bulk
+  // password reset).
+  let candidatesQuery = db("users")
+    .where({ organization_id: orgId, status: 1 })
+    .select("id", "email", "first_name", "last_name", "role", "password_changed_at");
+  if (!options.includeActivated) {
+    candidatesQuery = candidatesQuery.whereNull("password_changed_at");
+  }
+  const candidates: Array<{
+    id: number;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+    role: string;
+    password_changed_at: Date | null;
+  }> = await candidatesQuery;
+
+  if (candidates.length === 0) {
+    return { total_eligible: 0, invited: 0, skipped: 0, results: [] };
+  }
+
+  // Skip anyone with an existing pending invitation.
+  const emails = candidates.map((u) => u.email);
+  const pending: Array<{ email: string }> = await db("invitations")
+    .whereIn("email", emails)
+    .where({ status: "pending" })
+    .select("email");
+  const pendingEmails = new Set(pending.map((p) => p.email.toLowerCase()));
+
+  const toInvite = candidates.filter((u) => !pendingEmails.has(u.email.toLowerCase()));
+  const skippedAlreadyPending = candidates.length - toInvite.length;
+
+  // No seat-limit check here — every candidate row already exists in the
+  // `users` table (the candidates query reads from it), so each one
+  // already consumed its seat at creation time. Sending an invitation
+  // (or rotating the token on an existing one) doesn't consume a fresh
+  // seat, regardless of whether the user has activated yet.
+  //
+  // The earlier "newSeatInvites = filter(!password_changed_at)" check
+  // was wrong: pre-activation users are still in current_user_count, so
+  // counting them as new seats made bulk re-invite 403 the moment an
+  // org filled its plan, even though zero new seats were being requested.
+  // The single-user inviteUser() flow above (greenfield invites by
+  // email only) still carries its own seat check — that's the only path
+  // that genuinely creates a new user row.
+  const org = await db("organizations").where({ id: orgId }).first();
+
+  // Look up inviter + org name once for every email body.
+  const inviter = await db("users").where({ id: invitedBy }).first();
+  const inviterName = inviter
+    ? `${inviter.first_name || ""} ${inviter.last_name || ""}`.trim() || inviter.email
+    : "An administrator";
+  const orgName = org?.name || "your organization";
+
+  const results: Array<{
+    email: string;
+    status: "invited" | "skipped" | "failed";
+    error?: string;
+  }> = pending.map((p) => ({ email: p.email, status: "skipped" as const }));
+  let invited = 0;
+
+  for (const u of toInvite) {
+    try {
+      const token = randomHex(32);
+      const expiresAt = new Date(Date.now() + TOKEN_DEFAULTS.INVITATION_EXPIRY * 1000);
+      await db("invitations").insert({
+        organization_id: orgId,
+        email: u.email,
+        role: u.role || "employee",
+        first_name: u.first_name,
+        last_name: u.last_name,
+        invited_by: invitedBy,
+        token_hash: hashToken(token),
+        status: "pending",
+        expires_at: expiresAt,
+        created_at: new Date(),
+      });
+      void sendInvitationEmail({
+        to: u.email,
+        firstName: u.first_name,
+        orgName,
+        invitedByName: inviterName,
+        role: u.role || "employee",
+        token,
+      });
+      invited++;
+      results.push({ email: u.email, status: "invited" });
+    } catch (err: any) {
+      results.push({
+        email: u.email,
+        status: "failed",
+        error: err?.message || String(err),
+      });
+    }
+  }
+
+  return {
+    total_eligible: candidates.length,
+    invited,
+    skipped: skippedAlreadyPending,
+    results,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Org Chart
+// ---------------------------------------------------------------------------
+
+export interface OrgChartNode {
+  id: number;
+  name: string;
+  designation: string | null;
+  department: string | null;
+  photo: string | null;
+  children: OrgChartNode[];
+}
+
+export async function getOrgChart(orgId: number): Promise<OrgChartNode[]> {
+  const db = getDB();
+
+  const users = await db("users")
+    .leftJoin("organization_departments", "users.department_id", "organization_departments.id")
+    .where("users.organization_id", orgId)
+    .where("users.status", 1)
+    .select(
+      "users.id as id",
+      "users.first_name as first_name",
+      "users.last_name as last_name",
+      "users.designation as designation",
+      "users.role as role",
+      "users.reporting_manager_id as reporting_manager_id",
+      "users.photo_path as photo",
+      "organization_departments.name as department"
+    );
+
+  // Build a map of nodes (use Number() to handle potential BigInt from MySQL)
+  const nodeMap = new Map<number, OrgChartNode>();
+  const childToParent = new Map<number, number>();
+
+  for (const u of users) {
+    const uid = Number(u.id);
+    nodeMap.set(uid, {
+      id: uid,
+      name: `${u.first_name} ${u.last_name}`,
+      designation: u.designation || null,
+      department: u.department || null,
+      photo: u.photo || null,
+      children: [],
+    });
+
+    const managerId = u.reporting_manager_id != null ? Number(u.reporting_manager_id) : null;
+    if (managerId && managerId !== 0 && managerId !== uid) {
+      childToParent.set(uid, managerId);
+    }
+  }
+
+  // Detect and break circular chains before building tree
+  // A circular chain is A->B->...->A. Break by making the highest-role user a root.
+  const visited = new Set<number>();
+  for (const uid of childToParent.keys()) {
+    if (visited.has(uid)) continue;
+    // Walk the chain from uid upward
+    const chain: number[] = [];
+    const inChain = new Set<number>();
+    let current: number | undefined = uid;
+    while (current !== undefined && !visited.has(current)) {
+      if (inChain.has(current)) {
+        // Found a cycle — break it by removing the parent link of `current`
+        childToParent.delete(current);
+        break;
+      }
+      inChain.add(current);
+      chain.push(current);
+      current = childToParent.get(current);
+    }
+    for (const c of chain) visited.add(c);
+  }
+
+  // Build tree: attach children to parents
+  // #1060 — Collect employees without a valid manager into a virtual "No Manager" group
+  const roots: OrgChartNode[] = [];
+  const noManagerChildren: OrgChartNode[] = [];
+
+  for (const [uid, node] of nodeMap) {
+    const parentId = childToParent.get(uid);
+    if (parentId !== undefined && nodeMap.has(parentId)) {
+      nodeMap.get(parentId)!.children.push(node);
+    } else if (childToParent.has(uid)) {
+      // Has a reporting_manager_id but manager is not in the active user set
+      noManagerChildren.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  // If there are orphaned employees whose managers are missing, group them
+  if (noManagerChildren.length > 0) {
+    const noManagerRoot: OrgChartNode = {
+      id: 0,
+      name: "No Manager",
+      designation: null,
+      department: null,
+      photo: null,
+      children: noManagerChildren,
+    };
+    roots.push(noManagerRoot);
+  }
+
+  // Sort children alphabetically at each level for consistent display
+  function sortChildren(nodes: OrgChartNode[]) {
+    nodes.sort((a, b) => a.name.localeCompare(b.name));
+    for (const node of nodes) {
+      if (node.children.length > 0) sortChildren(node.children);
+    }
+  }
+  sortChildren(roots);
+
+  return roots;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Import
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert many users in a single transaction. Supports the full user shape
+ * (password, DOB, gender, DOJ/DOE, location, reporting manager, employment
+ * type, address) — passwords are bcrypt-hashed per row before insert.
+ *
+ * Pre-conditions (the caller must have already validated these):
+ * - emails are unique within the batch and against existing users
+ * - department_id / location_id / reporting_manager_id exist and belong to the org
+ * - role is valid and the importer is allowed to assign it
+ * - dates are YYYY-MM-DD and pass DOB ≥ 18 / DOE > DOJ rules
+ * - org seat_limit accommodates all rows
+ */
+export async function bulkCreateUsers(
+  orgId: number,
+  rows: Array<{
+    first_name: string;
+    last_name: string;
+    email: string;
+    password?: string;
+    role?: string;
+    emp_code?: string;
+    designation?: string;
+    department_id?: number;
+    location_id?: number;
+    reporting_manager_id?: number;
+    employment_type?: string;
+    date_of_joining?: string;
+    date_of_birth?: string;
+    date_of_exit?: string;
+    gender?: string;
+    contact_number?: string;
+    address?: string;
+  }>,
+  _importedBy: number,
+): Promise<{ count: number }> {
+  const db = getDB();
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10);
+
+  // Hash all passwords in parallel before opening the transaction so bcrypt
+  // doesn't hold the DB connection while it's churning through rounds.
+  const hashedPasswords = await Promise.all(
+    rows.map((row) => (row.password ? hashPassword(row.password) : Promise.resolve(null))),
+  );
+
+  const insertRows = rows.map((row, index) => {
+    // Probation ends 6 months after date_of_joining (or today if unspecified)
+    const doj = row.date_of_joining || todayISO;
+    const probationEnd = new Date(doj);
+    probationEnd.setMonth(probationEnd.getMonth() + 6);
+
+    return {
+      organization_id: orgId,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email.toLowerCase(),
+      password: hashedPasswords[index],
+      role: row.role || "employee",
+      emp_code: row.emp_code || null,
+      designation: row.designation || null,
+      department_id: row.department_id || null,
+      location_id: row.location_id || null,
+      reporting_manager_id: row.reporting_manager_id || null,
+      employment_type: row.employment_type || "full_time",
+      date_of_joining: doj,
+      date_of_birth: row.date_of_birth || null,
+      date_of_exit: row.date_of_exit || null,
+      probation_end_date: probationEnd.toISOString().slice(0, 10),
+      gender: row.gender || null,
+      contact_number: row.contact_number || null,
+      address: row.address || null,
+      status: 1,
+      language: "en",
+      created_at: now,
+      updated_at: now,
+    };
+  });
+
+  await db.transaction(async (trx) => {
+    // Insert in batches of 100 to keep individual statements reasonable
+    for (let i = 0; i < insertRows.length; i += 100) {
+      await trx("users").insert(insertRows.slice(i, i + 100));
+    }
+    await trx("organizations")
+      .where({ id: orgId })
+      .increment("current_user_count", insertRows.length);
+  });
+
+  return { count: insertRows.length };
+}
+
+/**
+ * Read-only "peek" at an invitation token. Powers the Accept Invitation
+ * page's prefill flow — the page calls this on mount and fills the
+ * First / Last Name inputs from the invitation row, and locks them
+ * when the invitation was issued for an already-existing user (the
+ * re-invite case from #1956 / #1958, where the user shouldn't be able
+ * to rename themselves on activation).
+ *
+ * Public — no auth — same access model as POST /accept-invitation.
+ * Returns the same NotFoundError shape so the frontend can use one
+ * "invalid / expired / used" message for all bad-token cases.
+ */
+export async function getInvitationInfo(token: string): Promise<{
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  org_name: string | null;
+  is_existing_user: boolean;
+}> {
+  const db = getDB();
+
+  const invitation = await db("invitations")
+    .where({ token_hash: hashToken(token), status: "pending" })
+    .first();
+
+  if (!invitation) throw new NotFoundError("Invitation");
+  if (new Date(invitation.expires_at) < new Date()) {
+    throw new NotFoundError("Invitation has expired");
+  }
+
+  // Existing-user check matches what acceptInvitation does at activate
+  // time. Look up GLOBALLY (users.email is globally unique per migration
+  // 001) and reject early when the email belongs to another org so the
+  // accept-invitation page surfaces the conflict before the user types
+  // their password — instead of letting the activate POST bubble up a
+  // generic 500 from the unique-key collision.
+  const existingUser = await db("users")
+    .where({ email: invitation.email })
+    .first();
+
+  if (existingUser && existingUser.organization_id !== invitation.organization_id) {
+    throw new ConflictError(
+      "This email is already registered with another organization. " +
+        "Please contact support to transfer your account.",
+    );
+  }
+
+  // If the invitation row's name columns are empty (admin invited by
+  // email only) but a user record exists, fall back to the user's
+  // stored name so the form is still prefilled.
+  const first =
+    invitation.first_name || (existingUser ? existingUser.first_name : null) || null;
+  const last =
+    invitation.last_name || (existingUser ? existingUser.last_name : null) || null;
+
+  const org = await db("organizations")
+    .where({ id: invitation.organization_id })
+    .select("name")
+    .first();
+
+  return {
+    email: invitation.email,
+    first_name: first,
+    last_name: last,
+    org_name: org?.name ?? null,
+    is_existing_user: !!existingUser,
+  };
+}
+
+export async function acceptInvitation(params: {
+  token: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}): Promise<UserPublic> {
+  const db = getDB();
+
+  const invitation = await db("invitations")
+    .where({ token_hash: hashToken(params.token), status: "pending" })
+    .first();
+
+  if (!invitation) throw new NotFoundError("Invitation");
+  if (new Date(invitation.expires_at) < new Date()) {
+    throw new NotFoundError("Invitation has expired");
+  }
+
+  // Resolve names: caller's value wins, otherwise fall back to whatever the
+  // admin stored on the invitation. Either source can legitimately be
+  // empty — admins often invite by email only — so reject the request with
+  // a 400 instead of letting MySQL crash on the NOT NULL constraint.
+  const resolvedFirstName = (params.firstName || invitation.first_name || "").trim();
+  const resolvedLastName = (params.lastName || invitation.last_name || "").trim();
+  if (!resolvedFirstName || !resolvedLastName) {
+    throw new ValidationError("First name and last name are required");
+  }
+  if (!params.password || params.password.length < 8) {
+    throw new ValidationError("Password must be at least 8 characters");
+  }
+
+  const passwordHash = await hashPassword(params.password);
+
+  const user = await db.transaction(async (trx) => {
+    const inviteNow = new Date();
+
+    // The original existing-user check filtered by `organization_id` only,
+    // but `users.email` is GLOBALLY unique (see migration 001). When the
+    // invitee already had an account in *another* org, that scoped lookup
+    // missed them, the code fell through to INSERT, and MySQL rejected with
+    // ER_DUP_ENTRY 'users.users_email_unique' — the user got a generic 500
+    // and the invitation stayed pending forever. Look up globally and split
+    // the three cases explicitly:
+    //   - same org → re-invite, UPDATE in place (no seat double-count)
+    //   - different org → reject with a clear 409 the frontend can render
+    //   - no row anywhere → fresh INSERT (current behaviour)
+    const existingUser = await trx("users")
+      .where({ email: invitation.email })
+      .first();
+
+    if (existingUser && existingUser.organization_id !== invitation.organization_id) {
+      throw new ConflictError(
+        "This email is already registered with another organization. " +
+          "Please contact support to transfer your account.",
+      );
+    }
+
+    let userId: number;
+    if (existingUser) {
+      // Same-org re-invite: don't INSERT (hits the unique email constraint).
+      // UPDATE password + names + status instead, and don't touch
+      // current_user_count (seat already counted).
+      await trx("users").where({ id: existingUser.id }).update({
+        first_name: resolvedFirstName,
+        last_name: resolvedLastName,
+        password: passwordHash,
+        password_changed_at: inviteNow,
+        // Re-activate the seat in case the user had been deactivated.
+        status: 1,
+        updated_at: inviteNow,
+      });
+      userId = existingUser.id;
+    } else {
+      // Calculate probation end date (6 months from today) for genuine
+      // new joiners only — re-invited users keep their original probation.
+      const inviteJoinDate = new Date().toISOString().slice(0, 10);
+      const inviteProbationEnd = new Date();
+      inviteProbationEnd.setMonth(inviteProbationEnd.getMonth() + 6);
+
+      const [insertedId] = await trx("users").insert({
+        organization_id: invitation.organization_id,
+        first_name: resolvedFirstName,
+        last_name: resolvedLastName,
+        email: invitation.email,
+        password: passwordHash,
+        password_changed_at: inviteNow,
+        role: invitation.role,
+        status: 1,
+        date_of_joining: inviteJoinDate,
+        probation_end_date: inviteProbationEnd.toISOString().slice(0, 10),
+        probation_status: "on_probation",
+        created_at: inviteNow,
+        updated_at: inviteNow,
+      });
+      userId = insertedId;
+
+      // Only fresh seats bump the org user count.
+      await trx("organizations")
+        .where({ id: invitation.organization_id })
+        .increment("current_user_count", 1);
+    }
+
+    await trx("invitations")
+      .where({ id: invitation.id })
+      .update({ status: "accepted", accepted_at: new Date() });
+
+    return trx("users").where({ id: userId }).first();
+  });
+
+  // Default-enable emp-payroll module access on activation. Idempotent
+  // for re-invites (helper checks for an existing seat). Best-effort —
+  // failures log a warning but never roll back the activation.
+  // Runs OUTSIDE the transaction so a slow seat insert doesn't extend
+  // the activation lock window.
+  await autoAssignPayrollSeat(
+    invitation.organization_id,
+    user.id,
+    invitation.invited_by ?? user.id,
+  );
+
+  return sanitizeUser(user);
+}

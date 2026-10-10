@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMP Cloud - E2E Test Dashboard</title>
+<style>
+  :root {
+    --bg0: #0d1117; --bg1: #161b22; --bg2: #21262d; --bg3: #292e36;
+    --border: #30363d; --t1: #e6edf3; --t2: #8b949e; --t3: #484f58;
+    --green: #3fb950; --red: #f85149; --yellow: #d29922; --blue: #58a6ff; --purple: #bc8cff;
+    --mono: 'JetBrains Mono','Cascadia Code','Fira Code',Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--sans); background:var(--bg0); color:var(--t1); min-height:100vh; }
+  ::-webkit-scrollbar { width:8px; }
+  ::-webkit-scrollbar-track { background:var(--bg0); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .hdr { position:sticky; top:0; z-index:100; background:var(--bg1); border-bottom:1px solid var(--border); padding:16px 24px; }
+  .hdr-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--blue),var(--purple)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#fff; }
+  .logo-text { font-size:18px; font-weight:600; }
+  .logo-sub { font-size:12px; color:#ccc; }
+  .badge { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; text-transform:uppercase; }
+  .badge-run { background:rgba(88,166,255,.15); color:var(--blue); border:1px solid rgba(88,166,255,.3); }
+  .badge-done { background:rgba(63,185,80,.15); color:var(--green); border:1px solid rgba(63,185,80,.3); }
+  .badge-fail { background:rgba(248,81,73,.15); color:var(--red); border:1px solid rgba(248,81,73,.3); }
+  .pulse { width:8px; height:8px; border-radius:50%; background:currentColor; animation:pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+  .stats { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  .st { display:flex; align-items:baseline; gap:5px; }
+  .sv { font-size:24px; font-weight:700; font-family:var(--mono); letter-spacing:-1px; }
+  .sl { font-size:11px; color:#ccc; text-transform:uppercase; }
+  .sp { color:var(--green); } .sf { color:var(--red); } .sk { color:var(--yellow); } .sm { color:var(--t3); }
+  .sd { width:1px; height:28px; background:var(--border); }
+  .elapsed { font-family:var(--mono); font-size:13px; color:#fff; margin-left:auto; }
+
+  .pbar { margin-top:12px; }
+  .pb { width:100%; height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; display:flex; }
+  .pb>div { height:100%; transition:width .5s ease; }
+  .pb-p { background:var(--green); } .pb-f { background:var(--red); } .pb-s { background:var(--yellow); }
+  .ptxt { display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:#ddd; font-family:var(--mono); }
+
+  .ctrl { display:flex; gap:8px; padding:12px 24px; background:var(--bg1); border-bottom:1px solid var(--border); align-items:center; flex-wrap:wrap; }
+  .fbtn { padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:transparent; color:#ddd; font-size:12px; cursor:pointer; font-family:var(--sans); }
+  .fbtn:hover { border-color:var(--t3); color:var(--t1); }
+  .fbtn.on { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .fbtn.onr { background:var(--red); border-color:var(--red); color:#fff; }
+  .sinp { flex:1; min-width:200px; max-width:400px; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg0); color:var(--t1); font-size:12px; font-family:var(--mono); outline:none; }
+  .sinp:focus { border-color:var(--blue); }
+  .sinp::placeholder { color:var(--t3); }
+  .cr { margin-left:auto; }
+
+  .main { padding:16px 24px 40px; max-width:1400px; margin:0 auto; }
+
+  .mc { margin-bottom:8px; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--bg1); }
+  .mc:hover { border-color:var(--t3); }
+  .mh { display:flex; align-items:center; padding:10px 16px; cursor:pointer; user-select:none; gap:12px; }
+  .mh:hover { background:var(--bg3); }
+  .chev { font-size:10px; color:var(--t3); transition:transform .2s; flex-shrink:0; width:16px; }
+  .chev.open { transform:rotate(90deg); }
+  .mn { font-weight:600; font-size:14px; flex-shrink:0; color:#fff; }
+  .ms { display:flex; gap:12px; margin-left:auto; font-size:12px; font-family:var(--mono); align-items:center; }
+  .ms .g { color:var(--green); } .ms .r { color:var(--red); } .ms .t { color:#ccc; }
+  .mp { width:120px; height:3px; background:var(--bg2); border-radius:2px; overflow:hidden; display:flex; flex-shrink:0; }
+  .mp>div { height:100%; transition:width .3s; }
+
+  .mb { display:none; border-top:1px solid var(--border); max-height:400px; overflow-y:auto; }
+  .mb.open { display:block; }
+
+  .tr { display:flex; align-items:center; padding:5px 16px 5px 44px; gap:10px; font-size:12px; border-bottom:1px solid rgba(48,54,61,.4); }
+  .tr:last-child { border-bottom:none; }
+  .tr:hover { background:var(--bg3); }
+  .td { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .td-p { background:var(--t3); } .td-g { background:var(--green); } .td-f { background:var(--red); box-shadow:0 0 6px rgba(248,81,73,.4); } .td-s { background:var(--yellow); }
+  .tn { font-family:var(--mono); font-size:11px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tn-p { color:#ccc; } .tn-g { color:#fff; } .tn-f { color:var(--red); } .tn-s { color:var(--yellow); }
+  .tf { font-size:10px; color:#aaa; flex-shrink:0; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tdu { font-family:var(--mono); font-size:10px; color:#ccc; flex-shrink:0; min-width:50px; text-align:right; }
+
+  .wait { text-align:center; padding:120px 24px; color:var(--t2); }
+  .spin { width:40px; height:40px; border:3px solid var(--border); border-top:3px solid var(--blue); border-radius:50%; animation:sp 1s linear infinite; margin:0 auto 20px; }
+  @keyframes sp { to{transform:rotate(360deg)} }
+
+  @media(max-width:768px) { .hdr{padding:12px 16px} .ctrl{padding:8px 16px} .main{padding:12px 16px} .tr{padding-left:32px} .tf{display:none} .mp{display:none} .sv{font-size:18px} }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="logo"><div class="logo-icon">E2E</div><div><div class="logo-text">EMP Cloud Test Dashboard</div><div class="logo-sub">Real-time Playwright E2E Test Monitor</div></div></div>
+    <div id="badge" class="badge badge-run"><div class="pulse"></div><span>Waiting</span></div>
+  </div>
+  <div class="stats">
+    <div class="st"><span class="sv" id="sTotal">-</span><span class="sl">Total</span></div>
+    <div class="sd"></div>
+    <div class="st"><span class="sv sp" id="sPass">0</span><span class="sl">Passed</span></div>
+    <div class="st"><span class="sv sf" id="sFail">0</span><span class="sl">Failed</span></div>
+    <div class="st"><span class="sv sk" id="sSkip">0</span><span class="sl">Skip</span></div>
+    <div class="st"><span class="sv sm" id="sPend">0</span><span class="sl">Pending</span></div>
+    <div class="elapsed" id="elapsed"></div>
+  </div>
+  <div class="pbar">
+    <div class="pb"><div class="pb-p" id="pbP" style="width:0"></div><div class="pb-f" id="pbF" style="width:0"></div><div class="pb-s" id="pbS" style="width:0"></div></div>
+    <div class="ptxt"><span id="pPct">0% complete</span><span id="pUpd" style="font-size:11px;color:var(--t3)"></span></div>
+  </div>
+</div>
+<div class="ctrl">
+  <button class="fbtn on" data-f="all" onclick="filt('all')">All</button>
+  <button class="fbtn" data-f="passed" onclick="filt('passed')">Passed</button>
+  <button class="fbtn" data-f="failed" onclick="filt('failed')">Failed</button>
+  <button class="fbtn" data-f="pending" onclick="filt('pending')">Pending</button>
+  <button class="fbtn" data-f="skipped" onclick="filt('skipped')">Skipped</button>
+  <input class="sinp" id="sinp" type="text" placeholder="Search tests..." oninput="refilter()">
+  <div class="cr"><button class="fbtn" id="togBtn" onclick="togAll()">Expand All</button></div>
+</div>
+<div class="main" id="main">
+  <div class="wait"><div class="spin"></div><div>Waiting for test data...</div></div>
+</div>
+
+<script>
+// --- State ---
+var D = null;           // latest JSON data
+var built = false;      // have we built the module cards?
+var openSet = {};       // which modules are open (by index)
+var curFilt = 'all';
+var curSearch = '';
+var allOpen = false;
+
+// --- Helpers ---
+function fmtD(ms) {
+  if (ms == null) return '';
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms/1000).toFixed(1) + 's';
+  return Math.floor(ms/60000) + 'm ' + Math.round((ms%60000)/1000) + 's';
+}
+function fmtE(ms) {
+  if (!ms) return '';
+  var s = Math.floor(ms/1000), m = Math.floor(s/60), h = Math.floor(m/60);
+  if (h) return h+'h '+m%60+'m '+s%60+'s';
+  if (m) return m+'m '+s%60+'s';
+  return s+'s';
+}
+function dotCls(s) { return 'td ' + (s==='passed'?'td-g':s==='failed'?'td-f':s==='skipped'?'td-s':'td-p'); }
+function nameCls(s) { return 'tn ' + (s==='passed'?'tn-g':s==='failed'?'tn-f':s==='skipped'?'tn-s':'tn-p'); }
+
+// --- Filters ---
+function filt(f) {
+  curFilt = f;
+  document.querySelectorAll('.fbtn[data-f]').forEach(function(b){
+    b.className = 'fbtn' + (b.getAttribute('data-f')===f ? (f==='failed'?' onr':' on') : '');
+  });
+  refilter();
+}
+function refilter() {
+  curSearch = document.getElementById('sinp').value.toLowerCase();
+  // Only filter rows in open modules (others aren't in DOM)
+  document.querySelectorAll('.tr').forEach(function(r){
+    var st = r.getAttribute('data-s');
+    var nm = r.getAttribute('data-n') || '';
+    var show = (curFilt==='all' || st===curFilt) && (!curSearch || nm.indexOf(curSearch)!==-1);
+    r.style.display = show ? '' : 'none';
+  });
+}
+
+// --- Toggle module ---
+function tog(idx) {
+  if (openSet[idx]) {
+    openSet[idx] = false;
+    clearBody(idx);
+  } else {
+    openSet[idx] = true;
+    fillBody(idx);
+  }
+}
+
+function clearBody(idx) {
+  var card = document.getElementById('m'+idx);
+  if (!card) return;
+  var body = card.querySelector('.mb');
+  var chev = card.querySelector('.chev');
+  body.innerHTML = '';
+  body.classList.remove('open');
+  chev.classList.remove('open');
+}
+
+function fillBody(idx) {
+  var card = document.getElementById('m'+idx);
+  if (!card || !D) return;
+  var body = card.querySelector('.mb');
+  var chev = card.querySelector('.chev');
+  chev.classList.add('open');
+  body.classList.add('open');
+
+  var modName = Object.keys(D.modules)[idx];
+  if (!modName) return;
+  var tests = D.modules[modName].tests;
+
+  // Build rows using DocumentFragment for performance
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < tests.length; i++) {
+    var t = tests[i];
+    if (curFilt !== 'all' && t.status !== curFilt) continue;
+    if (curSearch && (t.path||t.name).toLowerCase().indexOf(curSearch) === -1) continue;
+
+    var row = document.createElement('div');
+    row.className = 'tr';
+    row.setAttribute('data-s', t.status);
+    row.setAttribute('data-n', (t.path||t.name).toLowerCase());
+
+    var dot = document.createElement('div');
+    dot.className = dotCls(t.status);
+    row.appendChild(dot);
+
+    var nm = document.createElement('span');
+    nm.className = nameCls(t.status);
+    nm.textContent = t.path || t.name;
+    nm.title = t.path || t.name;
+    row.appendChild(nm);
+
+    var fl = document.createElement('span');
+    fl.className = 'tf';
+    fl.textContent = t.file;
+    row.appendChild(fl);
+
+    var du = document.createElement('span');
+    du.className = 'tdu';
+    du.textContent = fmtD(t.duration);
+    row.appendChild(du);
+
+    frag.appendChild(row);
+  }
+  body.innerHTML = '';
+  body.appendChild(frag);
+}
+
+function togAll() {
+  var keys = D ? Object.keys(D.modules) : [];
+  if (allOpen) {
+    allOpen = false;
+    document.getElementById('togBtn').textContent = 'Expand All';
+    for (var i = 0; i < keys.length; i++) { openSet[i] = false; clearBody(i); }
+  } else {
+    allOpen = true;
+    document.getElementById('togBtn').textContent = 'Collapse All';
+    for (var i = 0; i < keys.length; i++) { openSet[i] = true; fillBody(i); }
+  }
+}
+
+// --- Render ---
+function render(data) {
+  try {
+    D = data;
+    if (!data || !data.modules) return;
+    var S = data.summary;
+
+    // Stats
+    document.getElementById('sTotal').textContent = S.total;
+    document.getElementById('sPass').textContent = S.passed;
+    document.getElementById('sFail').textContent = S.failed;
+    document.getElementById('sSkip').textContent = (S.skipped||0)+(S.timedOut||0);
+    document.getElementById('sPend').textContent = S.pending;
+    document.getElementById('elapsed').textContent = fmtE(data.elapsed);
+
+    // Progress
+    var done = S.total - S.pending;
+    var pct = S.total > 0 ? (done/S.total*100) : 0;
+    document.getElementById('pbP').style.width = (S.total>0?S.passed/S.total*100:0)+'%';
+    document.getElementById('pbF').style.width = (S.total>0?S.failed/S.total*100:0)+'%';
+    document.getElementById('pbS').style.width = (S.total>0?(S.skipped||0)/S.total*100:0)+'%';
+    document.getElementById('pPct').textContent = pct.toFixed(1)+'% complete';
+    document.getElementById('pUpd').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    // Badge
+    var b = document.getElementById('badge');
+    if (data.status === 'finished') {
+      b.className = 'badge ' + (S.failed>0?'badge-fail':'badge-done');
+      b.innerHTML = '<span>'+(S.failed>0?'Finished with failures':'All passed')+'</span>';
+    } else {
+      b.className = 'badge badge-run';
+      b.innerHTML = '<div class="pulse"></div><span>Running</span>';
+    }
+
+    // Build module cards (only headers — no test rows until expanded)
+    var main = document.getElementById('main');
+    var mkeys = Object.keys(data.modules);
+
+    if (!built) {
+      built = true;
+      main.innerHTML = '';
+      for (var i = 0; i < mkeys.length; i++) {
+        var mn = mkeys[i];
+        var md = data.modules[mn];
+        var ts = md.tests;
+        var p=0, f=0;
+        for (var j=0;j<ts.length;j++) { if(ts[j].status==='passed')p++; if(ts[j].status==='failed')f++; }
+        var tot = ts.length;
+        var pp = tot>0?(p/tot*100):0, fp = tot>0?(f/tot*100):0;
+
+        var card = document.createElement('div');
+        card.className = 'mc';
+        card.id = 'm'+i;
+
+        var hdr = document.createElement('div');
+        hdr.className = 'mh';
+        hdr.setAttribute('onclick', 'tog('+i+')');
+        hdr.innerHTML =
+          '<span class="chev">&#9654;</span>' +
+          '<span class="mn">' + mn + '</span>' +
+          '<div class="ms">' +
+            '<span class="g" data-p>'+p+'</span>' +
+            '<span class="r" data-f>'+f+'</span>' +
+            '<span class="t" data-t>'+tot+' tests</span>' +
+            '<div class="mp"><div class="pb-p" style="width:'+pp+'%"></div><div class="pb-f" style="width:'+fp+'%"></div></div>' +
+          '</div>';
+        card.appendChild(hdr);
+
+        var body = document.createElement('div');
+        body.className = 'mb';
+        card.appendChild(body);
+        main.appendChild(card);
+
+        // Auto-expand modules with failures
+        if (f > 0) {
+          openSet[i] = true;
+          fillBody(i);
+        }
+      }
+      return;
+    }
+
+    // Update module headers (stats only — very lightweight)
+    for (var i = 0; i < mkeys.length; i++) {
+      var card = document.getElementById('m'+i);
+      if (!card) continue;
+      var md = data.modules[mkeys[i]];
+      var ts = md.tests;
+      var p=0, f=0;
+      for (var j=0;j<ts.length;j++) { if(ts[j].status==='passed')p++; if(ts[j].status==='failed')f++; }
+      var tot = ts.length;
+      var pp = tot>0?(p/tot*100):0, fp = tot>0?(f/tot*100):0;
+
+      var pe = card.querySelector('[data-p]');
+      var fe = card.querySelector('[data-f]');
+      if (pe) pe.textContent = p;
+      if (fe) fe.textContent = f;
+
+      var mp = card.querySelector('.mp');
+      if (mp) {
+        mp.children[0].style.width = pp+'%';
+        mp.children[1].style.width = fp+'%';
+      }
+
+      // Auto-expand on new failure
+      if (f > 0 && !openSet[i]) {
+        openSet[i] = true;
+        fillBody(i);
+      }
+
+      // Re-render open module bodies to reflect status changes
+      if (openSet[i]) {
+        fillBody(i);
+      }
+    }
+  } catch(e) { console.error('Render error:', e); }
+}
+
+// --- Poll ---
+var fetchErr = 0;
+async function poll() {
+  try {
+    var r = await fetch('./test-results-live.json?t='+Date.now());
+    if (!r.ok) { fetchErr++; return; }
+    fetchErr = 0;
+    render(await r.json());
+  } catch(e) { fetchErr++; }
+}
+setInterval(poll, 2000);
+poll();
+
+// --- Keys ---
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='/') { e.preventDefault(); document.getElementById('sinp').focus(); }
+  if (e.key==='Escape') { document.getElementById('sinp').blur(); document.getElementById('sinp').value=''; refilter(); }
+  if (e.key==='e') togAll();
+  if (e.key==='1') filt('all');
+  if (e.key==='2') filt('passed');
+  if (e.key==='3') filt('failed');
+  if (e.key==='4') filt('pending');
+});
+</script>
+</body>
+</html>

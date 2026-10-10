@@ -1,0 +1,6578 @@
+﻿{
+  "whistleblowing": {
+    "reports": {
+      "title": "所有举报",
+      "filters": "筛选：",
+      "allStatuses": "所有状态",
+      "allCategories": "所有类别",
+      "allSeverities": "所有严重程度",
+      "search": "搜索...",
+      "colCase": "案件编号",
+      "colCategory": "类别",
+      "colSeverity": "严重程度",
+      "colSubject": "主题",
+      "colAnonymous": "匿名",
+      "colInvestigator": "调查员",
+      "colStatus": "状态",
+      "colDate": "日期",
+      "yes": "是",
+      "no": "否",
+      "unassigned": "未分配",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（{{total}} 条举报）",
+      "previous": "上一页",
+      "next": "下一页",
+      "noReports": "未找到举报",
+      "status": {
+        "submitted": "已提交",
+        "under_investigation": "调查中",
+        "escalated": "已升级",
+        "resolved": "已解决",
+        "dismissed": "已驳回",
+        "closed": "已关闭"
+      },
+      "category": {
+        "fraud": "欺诈",
+        "corruption": "腐败",
+        "harassment": "骚扰",
+        "discrimination": "歧视",
+        "safety_violation": "安全违规",
+        "data_breach": "数据泄露",
+        "financial_misconduct": "财务不当行为",
+        "environmental": "环境",
+        "retaliation": "报复",
+        "other": "其他"
+      },
+      "severity": {
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "critical": "严重"
+      }
+    },
+    "track": {
+      "title": "追踪您的举报",
+      "subtitle": "输入您的案件编号以查看举报状态",
+      "caseNumber": "案件编号",
+      "placeholder": "例如 WB-2026-0001",
+      "lookup": "查询",
+      "lookingUp": "正在查询举报...",
+      "notFound": "未找到举报",
+      "notFoundDetail": "未找到案件编号为“{{caseNumber}}”的举报。请核对后重试。",
+      "category": "类别",
+      "subject": "主题",
+      "submitted": "已提交",
+      "resolved": "已解决",
+      "updates": "更新"
+    }
+  },
+  "events": {
+    "list": {
+      "title": "公司活动",
+      "subtitle": "浏览公司活动并回复出席。",
+      "manage": "管理活动",
+      "allTypes": "所有类型",
+      "allStatuses": "所有状态",
+      "loading": "正在加载活动...",
+      "empty": "未找到活动。",
+      "mandatory": "必须参加",
+      "allDay": "全天",
+      "joinOnline": "在线参加",
+      "attending": "{{count}} 人参加",
+      "maxSuffix": " / 上限 {{max}}",
+      "rsvpYes": "是",
+      "rsvpMaybe": "可能",
+      "rsvpNo": "否",
+      "titleAttending": "参加",
+      "titleMaybe": "可能",
+      "titleDecline": "拒绝",
+      "titleDelete": "删除活动",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 项）",
+      "previous": "上一页",
+      "next": "下一页",
+      "deleteTitle": "删除活动？",
+      "deleteConfirm": "删除 {{title}}？这将永久删除该活动及其出席回复。此操作无法撤消。",
+      "deleteFailed": "删除活动失败",
+      "cancel": "取消",
+      "deleting": "正在删除...",
+      "delete": "删除",
+      "type": {
+        "meeting": "会议",
+        "training": "培训",
+        "celebration": "庆祝",
+        "team_building": "团队建设",
+        "town_hall": "全员大会",
+        "holiday": "假日",
+        "workshop": "工作坊",
+        "social": "社交",
+        "other": "其他"
+      },
+      "status": {
+        "upcoming": "即将开始",
+        "ongoing": "进行中",
+        "completed": "已完成",
+        "cancelled": "已取消"
+      }
+    },
+    "my": {
+      "title": "我的活动",
+      "subtitle": "您已确认参加的活动。",
+      "loading": "正在加载您的活动...",
+      "empty": "您还没有确认参加任何活动。",
+      "browse": "浏览活动",
+      "cancelRsvp": "取消参加"
+    }
+  },
+  "surveys": {
+    "list": {
+      "title": "所有调查",
+      "subtitle": "管理您的员工调查。",
+      "new": "新建调查",
+      "allStatuses": "所有状态",
+      "allTypes": "所有类型",
+      "colTitle": "标题",
+      "colType": "类型",
+      "colStatus": "状态",
+      "colAnonymous": "匿名",
+      "colResponses": "回复数",
+      "colDates": "日期",
+      "colActions": "操作",
+      "loading": "加载中...",
+      "empty": "未找到调查。创建您的第一个调查以开始。",
+      "yes": "是",
+      "no": "否",
+      "start": "开始：{{date}}",
+      "end": "结束：{{date}}",
+      "titleEdit": "编辑",
+      "titlePublish": "发布",
+      "titleDelete": "删除",
+      "titleViewResults": "查看结果",
+      "titleClose": "关闭调查",
+      "titleRepublish": "重新发布",
+      "confirmDelete": "删除此调查草稿？",
+      "showing": "显示 {{total}} 项调查中的 {{shown}} 项 · 第 {{page}} 页，共 {{total_pages}} 页",
+      "previous": "上一页",
+      "next": "下一页",
+      "status": {
+        "draft": "草稿",
+        "active": "进行中",
+        "closed": "已关闭",
+        "archived": "已归档"
+      },
+      "type": {
+        "pulse": "脉冲",
+        "enps": "eNPS",
+        "engagement": "敬业度",
+        "custom": "自定义",
+        "onboarding": "入职",
+        "exit_survey": "离职调查"
+      }
+    }
+  },
+  "assets": {
+    "list": {
+      "title": "资产",
+      "subtitle": "管理 IT 设备和公司资产",
+      "export": "导出",
+      "exportCsv": "导出为 CSV",
+      "exportPdf": "导出为 PDF",
+      "bulkUpload": "批量上传",
+      "addAsset": "添加资产",
+      "searchPlaceholder": "按名称、标签或序列号搜索...",
+      "allStatuses": "所有状态",
+      "allCategories": "所有类别",
+      "loading": "正在加载资产...",
+      "empty": "未找到资产",
+      "colTag": "资产标签",
+      "colName": "名称",
+      "colCategory": "类别",
+      "colStatus": "状态",
+      "colAssignedTo": "分配给",
+      "colCondition": "状况",
+      "colWarranty": "保修",
+      "showing": "显示 {{total}} 项资产中的 {{shown}} 项 · 第 {{page}} 页，共 {{total_pages}} 页",
+      "warrantyBeforePurchase": "保修到期日期不能早于购买日期。",
+      "exportPdfFailed": "导出 PDF 失败",
+      "addModalTitle": "添加新资产",
+      "fieldName": "名称",
+      "fieldCategory": "类别",
+      "fieldSerialNumber": "序列号",
+      "fieldBrand": "品牌",
+      "fieldModel": "型号",
+      "fieldCondition": "状况",
+      "fieldPurchaseDate": "购买日期",
+      "fieldPurchaseCost": "购买成本",
+      "fieldWarrantyExpiry": "保修到期",
+      "fieldLocation": "位置",
+      "fieldDescription": "描述",
+      "fieldNotes": "备注",
+      "selectCategory": "选择类别",
+      "namePlaceholder": "例如 MacBook Pro 14",
+      "costPlaceholder": "例如 150000（表示 ₹1,500.00）",
+      "costHint": "请以派萨（最小货币单位）输入金额。",
+      "locationPlaceholder": "例如 3 楼，机架 B",
+      "cancel": "取消",
+      "creating": "正在创建...",
+      "create": "创建资产",
+      "createFailed": "创建资产失败",
+      "status": {
+        "available": "可用",
+        "assigned": "已分配",
+        "in_repair": "维修中",
+        "retired": "已退役",
+        "lost": "丢失",
+        "damaged": "已损坏"
+      },
+      "condition": {
+        "new": "全新",
+        "good": "良好",
+        "fair": "一般",
+        "poor": "较差"
+      }
+    }
+  },
+  "feedback": {
+    "list": {
+      "title": "所有反馈",
+      "subtitle": "员工的匿名反馈。不会透露任何身份。",
+      "filters": "筛选",
+      "allCategories": "所有类别",
+      "allStatuses": "所有状态",
+      "urgentOnly": "仅紧急",
+      "searchPlaceholder": "搜索反馈...",
+      "loading": "正在加载反馈...",
+      "empty": "没有符合当前筛选条件的反馈。",
+      "urgent": "紧急",
+      "hrResponse": "HR 回复",
+      "editResponse": "编辑回复",
+      "respond": "回复",
+      "updateStatus": "更新状态",
+      "delete": "删除",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 项）",
+      "previous": "上一页",
+      "next": "下一页",
+      "respondTitle": "回复反馈",
+      "responsePlaceholder": "撰写您的回复。匿名提交者将看到此内容。",
+      "cancel": "取消",
+      "sending": "正在发送...",
+      "sendResponse": "发送回复",
+      "deleteTitle": "删除反馈？",
+      "deleteConfirm": "删除 {{subject}}？此操作无法撤消。",
+      "deleteFailed": "删除反馈失败",
+      "deleting": "正在删除...",
+      "updateStatusTitle": "更新状态",
+      "updating": "正在更新...",
+      "update": "更新",
+      "category": {
+        "workplace": "工作场所",
+        "management": "管理层",
+        "process": "流程",
+        "culture": "文化",
+        "harassment": "骚扰",
+        "safety": "安全",
+        "suggestion": "建议",
+        "other": "其他"
+      },
+      "status": {
+        "new": "新",
+        "acknowledged": "已确认",
+        "under_review": "审核中",
+        "resolved": "已解决",
+        "archived": "已归档"
+      },
+      "sentiment": {
+        "positive": "正面",
+        "neutral": "中立",
+        "negative": "负面"
+      }
+    }
+  },
+  "nav": {
+    "dashboard": "仪表盘",
+    "employees": "员工",
+    "attendance": "考勤",
+    "leave": "休假",
+    "documents": "文档",
+    "announcements": "公告",
+    "policies": "政策",
+    "modules": "模块",
+    "billing": "账单",
+    "users": "用户",
+    "settings": "设置",
+    "audit": "审计日志",
+    "helpdesk": "帮助中心",
+    "surveys": "调查",
+    "assets": "资产",
+    "positions": "职位",
+    "vacancies": "空缺",
+    "headcountPlans": "人员编制规划",
+    "feedback": "反馈",
+    "events": "活动",
+    "celebrations": "庆祝",
+    "wellness": "健康",
+    "forum": "社区",
+    "whistleblowing": "举报",
+    "chatbot": "AI助手",
+    "myTeam": "我的团队",
+    "orgChart": "组织架构",
+    "biometrics": "生物识别",
+    "customFields": "自定义字段",
+    "compOff": "调休",
+    "signOut": "退出",
+    "platformAdmin": "平台管理",
+    "myProfile": "我的档案",
+    "selfService": "自助服务",
+    "probation": "试用期",
+    "createPost": "创建帖子",
+    "forumDashboard": "论坛仪表盘",
+    "myEvents": "我的活动",
+    "eventDashboard": "活动仪表盘",
+    "submitReport": "提交报告",
+    "trackReport": "追踪报告",
+    "allReports": "所有报告",
+    "activeSurveys": "活跃调查",
+    "surveyDashboard": "调查仪表盘",
+    "allSurveys": "所有调查",
+    "myWellness": "我的健康",
+    "dailyCheckIn": "每日签到",
+    "wellnessDashboard": "健康仪表盘",
+    "myAssets": "我的资产",
+    "assetDashboard": "资产仪表盘",
+    "allAssets": "所有资产",
+    "categories": "类别",
+    "submitFeedback": "提交反馈",
+    "myFeedback": "我的反馈",
+    "allFeedback": "所有反馈",
+    "feedbackDashboard": "反馈仪表盘",
+    "faceEnrollment": "人脸录入",
+    "qrAttendance": "二维码考勤",
+    "devices": "设备",
+    "biometricLogs": "生物识别日志",
+    "biometricSettings": "生物识别设置",
+    "biometricPin": "生物识别PIN码",
+    "overviewDashboard": "总览仪表盘",
+    "organizations": "组织",
+    "moduleAnalytics": "模块分析",
+    "revenue": "收入",
+    "subscriptions": "订阅",
+    "systemNotifications": "系统通知",
+    "serviceHealth": "服务状态",
+    "dataSanity": "数据完整性",
+    "aiConfiguration": "AI配置",
+    "logDashboard": "日志仪表盘",
+    "platformSettings": "平台设置",
+    "people": "人员",
+    "attendanceDashboard": "仪表板",
+    "shiftSettings": "班次设置",
+    "shiftSchedule": "班次排程",
+    "regularizations": "补签",
+    "leaveManagement": "请假",
+    "holidays": "节假日",
+    "company": "公司",
+    "workplace": "工作场所",
+    "community": "社区",
+    "feed": "动态",
+    "moduleAccess": "模块访问",
+    "wellnessCheckIn": "每日打卡",
+    "messages": "消息",
+    "changePassword": "修改密码",
+    "viewAttendance": "查看考勤",
+    "attendanceGrid": "考勤网格",
+    "attendanceSettings": "考勤设置",
+    "section": {
+      "account": "账户",
+      "administration": "管理",
+      "attendance_and_leave": "考勤与休假",
+      "communication": "沟通",
+      "people_and_hr": "人员与人力资源",
+      "workplace_and_community": "工作场所与社区"
+    }
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "search": "搜索",
+    "filter": "筛选",
+    "export": "导出",
+    "import": "导入",
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "success": "成功",
+    "error": "错误",
+    "confirm": "确认",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "submit": "提交",
+    "close": "关闭",
+    "yes": "是",
+    "no": "否",
+    "all": "全部",
+    "active": "活跃",
+    "inactive": "停用",
+    "pending": "待处理",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "trial": "试用",
+    "suspended": "已暂停",
+    "cancelled": "已取消",
+    "expired": "已过期",
+    "status": "状态",
+    "actions": "操作",
+    "date": "日期",
+    "name": "姓名",
+    "email": "邮箱",
+    "phone": "电话",
+    "department": "部门",
+    "designation": "职位",
+    "role": "角色",
+    "welcome": "欢迎回来",
+    "signOut": "退出",
+    "profile": "个人资料",
+    "notifications": "通知",
+    "markAllRead": "全部标记为已读",
+    "noNotifications": "暂无通知",
+    "viewAll": "查看全部",
+    "review": "查看",
+    "cancelInvitationTooltip": "取消此邀请并移除未激活的用户"
+  },
+  "auth": {
+    "signIn": "登录",
+    "signInTo": "登录 EOR",
+    "signingIn": "登录中...",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "forgotPassword": "忘记密码？",
+    "loginFailed": "邮箱或密码无效",
+    "loginSuccess": "登录成功",
+    "noAccount": "没有账户？",
+    "registerOrg": "注册您的组织",
+    "enterprisePlatform": "企业HRMS平台",
+    "forgotPasswordTitle": "重置您的密码",
+    "forgotPasswordDescription": "输入您的账户邮箱，我们将向您发送重置密码的链接。",
+    "sendResetLink": "发送重置链接",
+    "sendingResetLink": "发送中...",
+    "resetLinkSent": "如果该邮箱存在账户，重置链接已发送。请查看您的收件箱。",
+    "backToLogin": "返回登录",
+    "resetPasswordTitle": "设置新密码",
+    "resetPasswordDescription": "在下方输入您的新密码。",
+    "newPassword": "新密码",
+    "confirmPassword": "确认密码",
+    "passwordsDontMatch": "两次输入的密码不一致",
+    "resetPassword": "重置密码",
+    "resettingPassword": "重置中...",
+    "passwordResetSuccess": "密码已重置。请使用新密码登录。",
+    "missingResetToken": "重置链接无效或缺失。请重新申请。"
+  },
+  "dashboard": {
+    "statsError": "无法加载组织指标。请刷新页面后重试。",
+    "certified": "已认证",
+    "billingUpToDate": "账单已是最新",
+    "moduleInsightsDescription": "来自已启用 EMP 模块的实时指标。",
+    "productiveDay": "祝您今天工作顺利！",
+    "heroTagline": "人才。流程。更美好的明天。",
+    "trustedByModernTeams": "现代团队的信赖之选",
+    "simplerHR": "更简单的人力资源，更强大的团队。",
+    "last30Days": "过去 30 天",
+    "monitorAdminTitle": "EMP Monitor — 管理员访问",
+    "monitorAdminDescription": "您拥有完整的 Monitor 权限。请通过 SSO 安全继续。",
+    "loginAsAdmin": "以管理员身份登录",
+    "yourModulesDescription": "访问并管理您的 EMP 模块。启动模块、监控使用情况，让组织顺畅运行。",
+    "searchNavigation": "搜索导航",
+    "searchNavPlaceholder": "搜索页面和模块...",
+    "noNavigationMatches": "未找到匹配页面。",
+    "closeNavigation": "关闭导航",
+    "openNavigation": "打开导航",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏",
+    "skipToContent": "跳转到主要内容",
+    "title": "仪表盘",
+    "subtitle": "以下是您组织的最新动态。",
+    "totalUsers": "总用户数",
+    "activeModules": "活跃模块",
+    "departments": "部门",
+    "compliant": "合规",
+    "moduleInsights": "模块洞察",
+    "moduleOffline": "模块离线",
+    "yourModules": "您的模块",
+    "coreHRMS": "核心HRMS",
+    "coreHRMSName": "EOR - 核心HRMS",
+    "coreHRMSDescription": "您的全方位人力资源管理平台。管理员工档案，通过班次和地理围栏跟踪考勤，处理多级审批的休假申请，组织带有有效期跟踪的员工文档，发布公司范围的公告，并管理带有确认跟踪的政策。EOR 订阅免费包含所有功能。",
+    "includedFree": "免费包含",
+    "noModulesYet": "还没有付费模块。核心HRMS已在上方激活。",
+    "browseModules": "浏览模块市场",
+    "seatsUsed": "席位已用",
+    "launch": "打开",
+    "showLess": "收起",
+    "readMore": "展开",
+    "overdue": "逾期",
+    "viewDetails": "查看详情",
+    "quickLinks": {
+      "employees": "员工名录",
+      "attendance": "考勤",
+      "leave": "休假管理",
+      "documents": "文档",
+      "announcements": "公告",
+      "policies": "政策"
+    },
+    "opensInNewTab": "在新标签页中打开"
+  },
+  "plans": {
+    "basic": "基础版",
+    "standard": "标准版",
+    "premium": "高级版",
+    "enterprise": "企业版",
+    "free": "免费",
+    "trial": "试用"
+  },
+  "modules": {
+    "emp-rewards": {
+      "name": "EMP Rewards",
+      "description": "员工认可、徽章和称赞"
+    },
+    "emp-recruit": {
+      "name": "EMP Recruit",
+      "description": "申请者跟踪和招聘流程"
+    },
+    "emp-projects": {
+      "name": "EMP Projects",
+      "description": "项目管理和时间跟踪"
+    },
+    "emp-performance": {
+      "name": "EMP Performance",
+      "description": "绩效评估、OKR 和继任规划"
+    },
+    "emp-monitor": {
+      "name": "EMP Monitor",
+      "description": "员工活动和生产力监控"
+    },
+    "emp-field": {
+      "name": "EMP Field",
+      "description": "现场GPS签到和路线优化"
+    },
+    "emp-exit": {
+      "name": "EMP Exit",
+      "description": "离职管理和最终结算"
+    },
+    "emp-lms": {
+      "name": "学习管理与培训",
+      "description": "学习管理、课程、认证和合规培训"
+    },
+    "emp-payroll": {
+      "name": "EMP Payroll",
+      "description": "薪资管理、税务申报和合规报告"
+    },
+    "emp-biometrics": {
+      "name": "EMP Biometrics",
+      "description": "生物识别考勤跟踪"
+    }
+  },
+  "widgets": {
+    "recruit": {
+      "title": "招聘",
+      "openJobs": "开放职位",
+      "candidates": "候选人",
+      "recentHires": "近期入职"
+    },
+    "performance": {
+      "title": "绩效",
+      "activeCycles": "活跃周期",
+      "pendingReviews": "待处理评审",
+      "goalCompletion": "目标完成"
+    },
+    "rewards": {
+      "title": "认可",
+      "kudosThisMonth": "本月称赞",
+      "pointsGiven": "授予积分",
+      "badgesEarned": "获得徽章"
+    },
+    "exit": {
+      "title": "离职与流失",
+      "activeExits": "活跃离职",
+      "attritionRate": "流失率"
+    },
+    "lms": {
+      "title": "学习与发展",
+      "activeCourses": "活跃课程",
+      "enrollments": "注册",
+      "completionRate": "完成率"
+    }
+  },
+  "leave": {
+    "applications": {
+      "title": "请假申请",
+      "subtitle": "审核、批准或拒绝请假申请。",
+      "actionFailed": "操作失败",
+      "dismiss": "关闭",
+      "allStatuses": "所有状态",
+      "colEmployee": "员工",
+      "colType": "类型",
+      "colDates": "日期",
+      "colDays": "天数",
+      "colReason": "原因",
+      "colStatus": "状态",
+      "colRemarks": "备注",
+      "colActions": "操作",
+      "loading": "加载中...",
+      "noFiltered": "没有{{status}}的请假申请。",
+      "showAll": "显示所有申请",
+      "empty": "未找到申请",
+      "half": "（半天）",
+      "userHash": "用户 #{{id}}",
+      "by": "由 {{name}}",
+      "review": "审核",
+      "cancel": "取消",
+      "remarksPlaceholder": "备注（可选）",
+      "approve": "批准",
+      "reject": "拒绝",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 项）",
+      "previous": "上一页",
+      "next": "下一页",
+      "status": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "cancelled": "已取消"
+      }
+    },
+    "title": "休假管理",
+    "applyLeave": "申请休假",
+    "leaveBalance": "休假余额",
+    "leaveType": "休假类型",
+    "startDate": "开始日期",
+    "endDate": "结束日期",
+    "reason": "原因",
+    "daysRequested": "申请天数",
+    "approve": "批准",
+    "reject": "拒绝",
+    "daysRemaining": "剩余天数",
+    "noTypes": "未配置休假类型",
+    "dashboard": {
+      "title": "请假仪表板",
+      "subtitle": "查看您的请假余额并申请请假。",
+      "leaveSettings": "请假设置",
+      "paid": "带薪假",
+      "unpaid": "无薪假",
+      "days": "天",
+      "usedOfAllocated": "已使用 {{used}} 天，共分配 {{allocated}} 天",
+      "carrySuffix": "(+{{carry}} 天结转)",
+      "applyTitle": "申请请假",
+      "editTitle": "编辑请假申请",
+      "selectType": "选择类型",
+      "numberOfDays": "天数",
+      "halfDay": "半天",
+      "firstHalf": "上半天",
+      "secondHalf": "下半天",
+      "submitting": "提交中...",
+      "saving": "保存中...",
+      "submitApplication": "提交申请",
+      "saveChanges": "保存更改",
+      "actionsHeader": "操作",
+      "editAction": "编辑",
+      "cancelAction": "取消请假",
+      "cancelConfirmTitle": "取消请假申请？",
+      "cancelConfirm": "这将撤回您的请假申请。此操作无法撤消。",
+      "cancelFailed": "无法取消此请假。请重试。",
+      "appliedSuccess": "请假申请已成功提交。",
+      "updatedSuccess": "请假申请已成功更新。",
+      "cancelledSuccess": "请假申请已成功取消。",
+      "approvedBy": "{{name}} 已批准",
+      "rejectedBy": "{{name}} 已拒绝",
+      "submitError": "提交请假申请失败。请检查所有字段并重试。",
+      "recentTitle": "最近申请",
+      "noApplications": "暂无申请。",
+      "halfSuffix": "（半天）",
+      "pendingTitle": "待审批请假申请",
+      "selectedCount": "已选 {{count}} 项",
+      "processing": "处理中...",
+      "approveSelected": "批准所选",
+      "rejectSelected": "拒绝所选",
+      "bulkApproved": "成功批准 {{count}} 个申请。",
+      "bulkRejected": "成功拒绝 {{count}} 个申请。",
+      "bulkFailed": "{{count}} 个失败。",
+      "dismiss": "关闭",
+      "employeeHeader": "员工",
+      "typeHeader": "类型",
+      "datesHeader": "日期",
+      "daysHeader": "天数",
+      "reasonHeader": "原因",
+      "statusHeader": "状态",
+      "userFallback": "用户 #{{id}}",
+      "remarksPlaceholder": "备注（可选）",
+      "review": "审核",
+      "actionFailed": "操作失败"
+    },
+    "types": {
+      "CL": "事假",
+      "EL": "年假",
+      "SL": "病假",
+      "ML": "产假",
+      "PL": "陪产假",
+      "COMP_OFF": "调休",
+      "UNPAID": "无薪假",
+      "MARRIAGE": "婚假",
+      "BEREAVEMENT": "丧假"
+    },
+    "compOff": {
+      "title": "调休",
+      "subtitle": "为节假日或周末加班申请调休。",
+      "request": "申请调休",
+      "requestTitle": "申请调休",
+      "balanceLabel": "调休余额",
+      "usedOfAllocated": "已使用 {{used}} / 已分配 {{allocated}}",
+      "pendingRequests": "待审批",
+      "approvedRequests": "已批准",
+      "myRequests": "我的申请",
+      "pendingApprovals": "待审批",
+      "dateWorked": "加班日期",
+      "expiresOn": "到期日",
+      "expiryHint": "自动设为加班日后 30 天",
+      "days": "天数",
+      "daysHalf": "半天 (0.5)",
+      "daysFull": "全天 (1)",
+      "days1_5": "1.5 天",
+      "days2": "2 天",
+      "reason": "原因",
+      "reasonPlaceholder": "描述此日加班原因（例如：假日值班、周末部署）",
+      "cancel": "取消",
+      "submit": "提交申请",
+      "submitFailed": "提交失败",
+      "workedDate": "加班日期",
+      "status": "状态",
+      "submitted": "已提交",
+      "employee": "员工",
+      "nightAllowance": "夜班津贴",
+      "nightAllowanceTitle": "夜班工作天数",
+      "extraDay": "额外工作日",
+      "extraDayTitle": "周休及法定节假日工作天数",
+      "actions": "操作",
+      "approve": "批准",
+      "reject": "拒绝",
+      "rejectionReason": "拒绝原因",
+      "confirmReject": "确认拒绝",
+      "loading": "加载中...",
+      "noRequests": "尚无调休申请",
+      "noPending": "无待审批申请",
+      "userHash": "用户 #{{id}}",
+      "statusPending": "待审批",
+      "statusApproved": "已批准",
+      "statusRejected": "已拒绝"
+    }
+  },
+  "documents": {
+    "title": "文档",
+    "pending": "待处理文档",
+    "fallbackName": "文档",
+    "noPending": "没有待处理文档",
+    "page": {
+      "title": "文档",
+      "subtitle": "管理员工文档，跟踪合规性和到期情况。",
+      "uploadDocument": "上传文档",
+      "mandatoryOutstanding_one": "{{count}} 份必需文档待处理",
+      "mandatoryOutstanding_other": "{{count}} 份必需文档待处理",
+      "mandatoryOutstandingHint": "一名或多名员工缺少必需文档。请查看列表并跟进，或代为上传。",
+      "reviewNow": "立即查看",
+      "totalDocuments": "文档总数",
+      "expiring30": "即将到期（30天）",
+      "missingMandatory": "缺少必需",
+      "rejectTitle": "拒绝文档",
+      "rejectionReason": "拒绝原因",
+      "rejectionPlaceholder": "请提供拒绝原因...",
+      "cancel": "取消",
+      "rejecting": "拒绝中...",
+      "rejectDocument": "拒绝文档",
+      "fieldFile": "文件",
+      "fieldDocName": "文档名称",
+      "docNamePlaceholder": "可选 — 默认使用文件名",
+      "fieldCategory": "类别",
+      "selectCategory": "选择类别",
+      "fieldEmployee": "员工",
+      "employeePlaceholder": "按姓名或邮箱搜索（留空表示本人）",
+      "fieldExpiry": "到期日期",
+      "uploadFailed": "文档上传失败。请重试。",
+      "uploading": "上传中...",
+      "upload": "上传",
+      "expiringHeading": "30 天内到期的文档",
+      "noExpiring": "没有即将到期的文档。",
+      "colDocument": "文档",
+      "colEmployee": "员工",
+      "colCategory": "类别",
+      "colExpires": "到期",
+      "colStatus": "状态",
+      "expiredPrefix": "已过期",
+      "verified": "已验证",
+      "pending": "待处理",
+      "rejected": "已拒绝",
+      "missingHeading": "缺少的必需文档",
+      "allSubmitted": "所有员工已提交必需文档。",
+      "colEmployeeCode": "员工编号",
+      "colMissingDocument": "缺少的文档",
+      "searchPlaceholder": "按姓名、邮箱或文档名称搜索...",
+      "allCategories": "所有类别",
+      "colExpiry": "到期",
+      "colActions": "操作",
+      "loading": "加载中...",
+      "noDocuments": "未找到文档",
+      "download": "下载",
+      "verify": "验证",
+      "reject": "拒绝",
+      "delete": "删除",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页",
+      "downloadFailed": "文档下载失败。",
+      "deleteTitle": "删除此文档？",
+      "deleteDesc": "此文档将被永久删除。此操作无法撤销。"
+    }
+  },
+  "policies": {
+    "title": "政策",
+    "acknowledged": "已确认",
+    "review": "查看",
+    "page": {
+      "title": "公司政策",
+      "subtitleEmployee": "查看并确认公司政策。",
+      "subtitleHr": "创建和管理组织政策。",
+      "untitled": "无标题政策",
+      "pendingBanner_one": "您有 {{count}} 项政策待确认。",
+      "pendingBanner_other": "您有 {{count}} 项政策待确认。",
+      "loading": "加载中...",
+      "emptyEmployee": "未找到政策。",
+      "emptyHr": "尚未创建政策。",
+      "pending": "待确认",
+      "acknowledged": "已确认",
+      "effective": "生效日期：{{date}}",
+      "acknowledgePolicy": "确认政策",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页",
+      "newPolicy": "新建政策",
+      "editPolicy": "编辑政策",
+      "createPolicy": "创建政策",
+      "editingHint": "编辑中 — 保存时版本可能会更新",
+      "fieldTitle": "标题",
+      "titlePlaceholder": "政策标题",
+      "fieldCategory": "类别",
+      "categoryPlaceholder": "例如 人力资源、IT、安全",
+      "fieldEffectiveDate": "生效日期",
+      "fieldContent": "内容",
+      "contentPlaceholder": "撰写政策内容...",
+      "cancel": "取消",
+      "saving": "保存中…",
+      "saveChanges": "保存更改",
+      "creating": "创建中…",
+      "createPolicyBtn": "创建政策",
+      "colTitle": "标题",
+      "colCategory": "类别",
+      "colVersion": "版本",
+      "colEffectiveDate": "生效日期",
+      "colAcknowledgments": "确认",
+      "colActions": "操作",
+      "view": "查看",
+      "acks": "确认",
+      "edit": "编辑",
+      "delete": "删除",
+      "deleting": "删除中…",
+      "acksHeader": "确认 — {{title}}",
+      "noAcks": "暂无确认。",
+      "deleteTitle": "删除政策？",
+      "deleteConfirmPrefix": "确定要删除",
+      "deleteConfirmSuffix": "吗？该政策将对员工隐藏；现有确认记录将保留以供审计。",
+      "deleteConfirmGeneric": "确定要删除此政策吗？"
+    },
+    "toast": {
+      "deleted": "策略已删除",
+      "deleteFailed": "删除策略失败",
+      "updated": "政策已更新",
+      "created": "政策已创建",
+      "updateFailed": "政策更新失败",
+      "createFailed": "政策创建失败"
+    }
+  },
+  "announcements": {
+    "title": "公告",
+    "page": {
+      "title": "公告",
+      "subtitle": "及时了解公司公告。",
+      "newAnnouncement": "新建公告",
+      "createTitle": "创建公告",
+      "fieldTitle": "标题",
+      "titlePlaceholder": "公告标题",
+      "fieldContent": "内容",
+      "contentPlaceholder": "在此撰写您的公告...",
+      "fieldPriority": "优先级",
+      "fieldTarget": "目标",
+      "targetAll": "全体员工",
+      "targetDepartment": "部门",
+      "targetRole": "角色",
+      "selectDepartments": "选择部门",
+      "loadingDepartments": "正在加载部门...",
+      "noDepartments": "未找到部门。请先在设置中创建部门。",
+      "departmentsSelected": "已选择 {{count}} 个部门",
+      "selectRoles": "选择角色",
+      "rolesSelected": "已选择 {{count}} 个角色",
+      "fieldExpires": "过期时间",
+      "cancel": "取消",
+      "publish": "发布",
+      "loading": "正在加载公告...",
+      "empty": "暂无公告可显示。",
+      "new": "新",
+      "showLess": "收起",
+      "readMore": "阅读更多",
+      "markRead": "标记为已读",
+      "delete": "删除",
+      "edit": "编辑",
+      "editTitle": "编辑公告",
+      "editAria": "编辑公告 {{title}}",
+      "saveChanges": "保存更改",
+      "createSuccess": "公告\"{{title}}\"已成功发布。",
+      "createError": "发布公告失败。",
+      "updateSuccess": "公告\"{{title}}\"已成功更新。",
+      "updateError": "更新公告失败。",
+      "deleteTitle": "删除公告",
+      "deleteAria": "删除公告 {{title}}",
+      "draft": "草稿",
+      "expires": "{{date}} 过期",
+      "read": "已读",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页",
+      "deleteConfirmTitle": "删除公告“{{title}}”？",
+      "deleteConfirmTitleGeneric": "删除公告？",
+      "deleteConfirmDesc": "此操作无法撤销。",
+      "priority": {
+        "low": "低",
+        "normal": "正常",
+        "high": "高",
+        "urgent": "紧急"
+      },
+      "roles": {
+        "employee": "员工",
+        "manager": "经理",
+        "hr_admin": "HR 管理员",
+        "org_admin": "组织管理员"
+      }
+    }
+  },
+  "selfService": {
+    "welcomeBack": "欢迎回来，{{name}}！",
+    "overviewDesc": "这是您的自助服务仪表盘概览。",
+    "editMyDetails": "编辑我的信息",
+    "requestUpdate": "请求更新"
+  },
+  "attendance": {
+    "title": "考勤",
+    "checkIn": "签到",
+    "checkOut": "签退",
+    "present": "出勤",
+    "absent": "缺勤",
+    "late": "迟到",
+    "onLeave": "休假中",
+    "todayStatus": "今日状态",
+    "myAttendance": "我的考勤",
+    "myAttendanceToday": "我今日的考勤",
+    "notYet": "尚未",
+    "totalWorkedToday": "今日工作总时长",
+    "notCheckedInYet": "今日尚未签到",
+    "attendanceComplete": "今日考勤已完成",
+    "dashboardTitle": "考勤仪表盘",
+    "aiInsights": "AI 洞察",
+    "dashboardSubtitle": "今日组织考勤概览。",
+    "totalEmployees": "员工总数",
+    "presentToday": "今日出勤",
+    "absentToday": "今日缺勤",
+    "lateToday": "今日迟到",
+    "regularizationRequests": "考勤订正申请",
+    "shiftManagement": "班次管理",
+    "filters": "筛选",
+    "month": "月份",
+    "year": "年份",
+    "department": "部门",
+    "dateFrom": "起始日期",
+    "dateTo": "结束日期",
+    "apply": "应用",
+    "clearFilters": "清除筛选",
+    "exportReport": "导出报表",
+    "allDepartments": "所有部门",
+    "recordsTitle": "考勤记录 — {{month}} {{year}}",
+    "filteredSuffix": "（已筛选）",
+    "tableWorked": "工作时长",
+    "noRecords": "所选筛选条件下未找到考勤记录",
+    "pagination": "第 {{page}} / {{totalPages}} 页（共 {{total}} 条）",
+    "previous": "上一页",
+    "next": "下一页",
+    "statusCheckedIn": "已签到",
+    "statusHalfDay": "半天",
+    "breakdown": {
+      "title": "考勤详情 — {{date}}",
+      "todayFallback": "今日",
+      "tabAll": "全部",
+      "noEmployeesInCategory": "此类别中没有员工。",
+      "lateBy": "迟到时长",
+      "minSuffix": "分钟",
+      "close": "关闭",
+      "dateLabel": "日期",
+      "searchPlaceholder": "搜索姓名、邮箱或部门",
+      "noSearchResults": "没有符合搜索条件的员工。",
+      "allDepartments": "所有部门",
+      "allLocations": "所有地点",
+      "export": "导出"
+    },
+    "export": {
+      "title": "导出考勤报表",
+      "subtitle": "选择报表类型和筛选器",
+      "reportType": "报表类型",
+      "detailed": "详细报表",
+      "detailedDesc": "每条签到/签退记录",
+      "consolidated": "汇总",
+      "consolidatedDesc": "员工月度摘要",
+      "monthYear": "月/年",
+      "customRange": "自定义日期范围",
+      "from": "起始",
+      "to": "结束",
+      "allStatuses": "所有状态",
+      "includes": "此报表包含：",
+      "includesDetailed": "员工姓名、员工代码、邮箱、部门、职位、日期、班次信息、签到/签退时间、工作时长、加班、迟到分钟、早退、状态",
+      "includesConsolidated": "员工姓名、员工代码、邮箱、部门、职位、出勤/半天/缺勤/休假天数、迟到次数、工作总时长、日均工作、加班、迟到、早退、出勤率",
+      "cancel": "取消",
+      "exporting": "导出中...",
+      "downloadExcel": "下载 Excel",
+      "exportFailed": "导出失败，请重试。"
+    },
+    "shifts": {
+      "title": "班次",
+      "subtitle": "管理贵组织的工作班次。",
+      "addShift": "添加班次",
+      "editShift": "编辑班次",
+      "createShift": "创建班次",
+      "modalSubtitle": "配置班次时间和工作日",
+      "shiftName": "班次名称",
+      "shiftNamePlaceholder": "例如：普通班、夜班、周末班",
+      "startTime": "开始时间",
+      "endTime": "结束时间",
+      "breakLabel": "休息（分钟）",
+      "graceLate": "迟到宽限（分钟）",
+      "graceEarly": "早退宽限（分钟）",
+      "nightShift": "夜班",
+      "defaultShift": "默认班次",
+      "workingDays": "工作日",
+      "stateFull": "全天",
+      "stateHalf": "半天",
+      "stateOff": "休",
+      "cycleHint": "点击切换：休 → 全天 → 半天 → 休",
+      "saving": "保存中...",
+      "updateShift": "更新班次",
+      "noShifts": "未配置班次",
+      "defaultBadge": "默认",
+      "typeDay": "日班",
+      "typeNight": "夜班",
+      "deactivateConfirm": "停用此班次？",
+      "fullDay": "全天",
+      "halfDay": "半天",
+      "dayOff": "休息日",
+      "table": {
+        "name": "名称",
+        "timing": "时间",
+        "break": "休息",
+        "workingDays": "工作日",
+        "type": "类型",
+        "actions": "操作"
+      },
+      "dayLabels": {
+        "sun": "日",
+        "mon": "一",
+        "tue": "二",
+        "wed": "三",
+        "thu": "四",
+        "fri": "五",
+        "sat": "六"
+      }
+    },
+    "regularizations": {
+      "title": "考勤补签",
+      "subtitle": "管理考勤更正申请。",
+      "newRequest": "新申请",
+      "submitTitle": "提交补签申请",
+      "date": "日期",
+      "reason": "原因",
+      "reasonPlaceholder": "补签原因",
+      "requestedCheckIn": "申请签到时间",
+      "requestedCheckOut": "申请签退时间",
+      "checkoutAfterCheckin": "签退时间必须晚于签到时间。",
+      "submit": "提交",
+      "submitSuccess": "考勤更正申请已成功提交。",
+      "submitError": "提交考勤更正申请失败。",
+      "approveSuccess": "考勤更正申请已批准。",
+      "rejectSuccess": "考勤更正申请已拒绝。",
+      "rejectionPrompt": "拒绝原因（可选）：",
+      "noRecords": "暂无补签申请",
+      "approve": "批准",
+      "reject": "拒绝",
+      "viewDetails": "点击查看完整详情",
+      "detailTitle": "补签申请",
+      "rejectionReason": "拒绝原因",
+      "statusPending": "待处理",
+      "statusApproved": "已批准",
+      "statusRejected": "已拒绝",
+      "tabs": {
+        "pending": "待处理申请",
+        "all": "全部申请",
+        "my": "我的申请"
+      },
+      "table": {
+        "employee": "员工",
+        "date": "日期",
+        "originalInOut": "原始签到/签退",
+        "requestedInOut": "申请签到/签退",
+        "reason": "原因",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "rejectionPlaceholder": "e.g. Insufficient justification, dates do not match records"
+    },
+    "shiftSchedule": {
+      "title": "班次安排",
+      "subtitle": "查看并管理您团队的班次分配。",
+      "bulkAssign": "批量分配",
+      "tabs": {
+        "schedule": "团队排班",
+        "mySchedule": "我的排班",
+        "swapRequests": "换班申请"
+      },
+      "team": {
+        "employee": "员工",
+        "loading": "正在加载排班...",
+        "noEmployees": "未找到员工",
+        "editTooltip": "编辑分配",
+        "removeTooltip": "移除分配",
+        "assignTooltip": "分配班次",
+        "removeConfirm": "要移除此班次分配吗？"
+      },
+      "bulk": {
+        "title": "批量分配班次",
+        "shiftLabel": "班次",
+        "selectShift": "选择班次",
+        "employees": "员工",
+        "selectedCount": "已选 {{count}} 人",
+        "from": "从",
+        "toOptional": "至（可选）",
+        "assigning": "正在分配...",
+        "assignShift": "分配班次"
+      },
+      "quick": {
+        "title": "分配班次",
+        "dateLabel": "日期",
+        "assign": "分配"
+      },
+      "edit": {
+        "title": "编辑分配",
+        "shiftLabel": "班次",
+        "from": "从",
+        "toOptional": "至（可选）",
+        "saving": "保存中...",
+        "save": "保存"
+      },
+      "my": {
+        "loading": "正在加载您的排班...",
+        "noAssignments": "当前期间未找到班次分配。",
+        "showingFromTo": "显示 {{from}} 至 {{to}} 的班次",
+        "nightSuffix": "（夜班）",
+        "breakSuffix": "休息 {{minutes}} 分钟",
+        "from": "从",
+        "to": "至"
+      },
+      "swaps": {
+        "loading": "正在加载换班申请...",
+        "none": "暂无换班申请。",
+        "wantsToSwap": "希望与以下人员换班",
+        "dateLabel": "日期",
+        "reasonLabel": "原因",
+        "approve": "批准",
+        "reject": "拒绝",
+        "statusApproved": "已批准",
+        "statusRejected": "已拒绝"
+      },
+      "search": {
+        "placeholder": "按姓名或编号搜索...",
+        "show": "显示",
+        "entries": "条",
+        "showingRange": "显示 {{total}} 条中的 {{from}} 至 {{to}} 条",
+        "noResults": "没有员工符合您的搜索。"
+      }
+    },
+    "my": {
+      "title": "我的考勤",
+      "subtitle": "跟踪您的每日考勤并查看历史记录。",
+      "today": "今天 - {{date}}",
+      "checkInLabel": "签到",
+      "checkOutLabel": "签退",
+      "workedLabel": "工时",
+      "notYet": "尚未",
+      "webDisabled": "网页签到已禁用",
+      "webDisabledTooltip": "管理员已禁用网页签到。请使用 EOR 移动应用或生物识别设备。",
+      "checkIn": "签到",
+      "checkOut": "签退",
+      "completed": "今日已完成",
+      "cancel": "取消",
+      "requestRegularization": "申请考勤修正",
+      "regFormTitle": "申请考勤修正",
+      "regFormHint": "提交申请以更正遗漏或错误的签到/签退。请为每项选择完整的日期和时间 — 夜班请将签退设置为次日。",
+      "fieldDate": "日期",
+      "fieldReason": "原因",
+      "reasonPlaceholder": "例如 忘记签到",
+      "fieldRequestedCheckIn": "申请签到",
+      "fieldRequestedCheckOut": "申请签退",
+      "submitting": "提交中...",
+      "submitRequest": "提交申请",
+      "myRequests": "我的考勤修正申请",
+      "showingLatest": "显示最新 {{count}} 条",
+      "colDate": "日期",
+      "colReason": "原因",
+      "colRequestedCheckIn": "申请签到",
+      "colRequestedCheckOut": "申请签退",
+      "colStatus": "状态",
+      "colActions": "操作",
+      "loading": "加载中…",
+      "noRequests": "暂无考勤修正申请。",
+      "deletePendingAria": "删除待处理申请",
+      "deleteRequestTitle": "删除申请",
+      "colCheckIn": "签到",
+      "colCheckOut": "签退",
+      "colWorked": "工时",
+      "colLate": "迟到",
+      "colDetails": "详情",
+      "noRecords": "本月暂无记录",
+      "collapseTimeline": "收起时间线",
+      "expandTimeline": "展开时间线",
+      "hideTimeline": "隐藏时间线",
+      "showTimeline": "显示时间线",
+      "regularizeDay": "修正此天",
+      "viewDetailsAria": "查看考勤详情",
+      "viewDetailsTitle": "查看详情",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页",
+      "delete": "删除",
+      "deleteDialogTitle": "删除考勤修正申请？",
+      "deleteDialogDesc": "此待处理的考勤修正申请将被永久删除。此操作无法撤销。",
+      "errorRecord": "无法记录考勤。请重试。",
+      "errorDelete": "删除申请失败。",
+      "errorCheckoutAfter": "签退时间必须晚于签到时间。",
+      "errorSubmit": "提交考勤修正申请失败。",
+      "regSuccess": "考勤更正申请已成功提交。",
+      "loadingTimeline": "正在加载时间线…",
+      "timelineError": "无法加载此记录的时间线。",
+      "noPunches": "这一天没有打卡历史。",
+      "deviceIdentifier": "设备标识符",
+      "via": "通过",
+      "detailsTitle": "考勤详情",
+      "close": "关闭",
+      "punchTimeline": "打卡时间线",
+      "punchCheckIn": "签到",
+      "punchCheckOut": "签退",
+      "punch": "打卡",
+      "sourceBiometric": "生物识别",
+      "sourceApp": "移动应用",
+      "sourceWeb": "网页",
+      "sourceManual": "手动",
+      "status": {
+        "present": "出勤",
+        "checked_in": "已签到",
+        "half_day": "半天",
+        "on_leave": "请假",
+        "holiday": "假日",
+        "week_off": "周休",
+        "absent": "缺勤"
+      },
+      "reqStatus": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "rejected": "已拒绝"
+      }
+    },
+    "grid": {
+      "subtitle": "整月的按日期考勤。双击任意单元格可更改状态。",
+      "export": "导出",
+      "exporting": "导出中...",
+      "exportTooltip": "将可见网格（含已应用的筛选）下载为 Excel 文件",
+      "searchEmployee": "搜索员工",
+      "searchPlaceholder": "姓名或员工编号",
+      "department": "部门",
+      "allDepartments": "所有部门",
+      "location": "地点",
+      "allLocations": "所有地点",
+      "employeeCount": "{{total}} 名员工中的 {{shown}} 名",
+      "clearFilters": "清除筛选",
+      "employee": "员工",
+      "noEmployees": "该组织没有员工。",
+      "noMatch": "没有员工符合当前筛选条件。",
+      "totalRow": "合计 {{code}} — {{label}}",
+      "tip": "提示：双击任意单元格以标记 P / A / H / L / HPL / WOT / HOT。WO 和 HO 根据组织日历自动计算；选择一个值进行覆盖，或选\"—\"恢复。同一天既有签到又有签退的员工按工时与班次时长之比分类：低于班次的 25% → A（缺勤），25–50% → H（半天），50%+ → P（出勤）。过去某天员工签到但从未签退则显示为 M（漏签退），以便人力资源在发薪前审核和覆盖。",
+      "savedToast": "已为 {{date}} 保存 {{code}}",
+      "saveFailed": "保存考勤失败",
+      "leaveAppliedToast": "已于 {{date}} 为 {{name}} 申请请假",
+      "legend": {
+        "present": "出勤",
+        "absent": "缺勤",
+        "halfDay": "半天",
+        "onLeave": "请假",
+        "hpl": "½ 出勤 + ½ 请假",
+        "weekOff": "周休",
+        "holiday": "假日",
+        "wot": "周休加班（已工作）",
+        "hot": "假日加班（已工作）",
+        "missed": "漏签退"
+      },
+      "editor": {
+        "close": "关闭",
+        "existingLeave": "此日期已有请假",
+        "halfPm": "½ 下午",
+        "halfAm": "½ 上午",
+        "halfDayShort": "半天",
+        "setStatus": "设置状态",
+        "applyLeave": "申请请假",
+        "loadingTypes": "正在加载类型…",
+        "noLeaveTypes": "组织中没有可用的请假类型。",
+        "noBalance": "{{name}} 没有剩余余额",
+        "applyOneDay": "申请 1 天 {{name}}",
+        "left": "剩余 {{count}}",
+        "hplShort": "½出+½假",
+        "weekOffOt": "周休加班",
+        "holidayOt": "假日加班",
+        "reset": "重置"
+      },
+      "applyLeaveFailed": "申请请假失败"
+    },
+    "location": "地点",
+    "monthlyLate": {
+      "lateDaysOne": "迟到 {{count}} 天",
+      "lateDaysOther": "迟到 {{count}} 天",
+      "lateDaysCol": "迟到天数",
+      "totalLateCol": "迟到总计",
+      "presetToday": "今天",
+      "presetMonth": "本月",
+      "preset15": "最近15天",
+      "preset30": "最近30天",
+      "presetCustom": "自定义",
+      "rangeFrom": "起始日期",
+      "rangeTo": "结束日期"
+    }
+  },
+  "manager": {
+    "title": "我的团队",
+    "teamManagement": "团队管理",
+    "engagementPrompt": "让您的团队保持活力！",
+    "viewCalendar": "查看日历",
+    "pendingUpToDate": "所有休假申请均已更新。",
+    "searchTeam": "搜索团队成员...",
+    "subtitle": "经理仪表盘 — 您的直接下属概览。",
+    "stats": {
+      "teamSize": "团队规模",
+      "presentToday": "今日出勤",
+      "absentToday": "今日缺勤",
+      "onLeave": "休假中",
+      "lateToday": "今日迟到",
+      "pendingLeaves": "待处理的休假"
+    },
+    "teamAttendanceToday": "今日团队考勤",
+    "noTeamMembers": "未找到团队成员",
+    "inPrefix": "签到",
+    "outPrefix": "签退",
+    "statusHalfDay": "半天",
+    "statusPresent": "出勤",
+    "statusAbsent": "缺勤",
+    "statusOnLeave": "休假中",
+    "teamLeaveCalendar": "团队休假日历（本周）",
+    "noApprovedLeaves": "本周没有批准的休假",
+    "leaveFallback": "休假",
+    "halfFirst": "上半",
+    "halfSecond": "下半",
+    "pendingLeaveRequests": "待处理的休假申请",
+    "pendingBadge": "{{count}} 待处理",
+    "table": {
+      "employee": "员工",
+      "type": "类型",
+      "dates": "日期",
+      "days": "天数",
+      "reason": "原因",
+      "actions": "操作"
+    },
+    "halfSuffix": "（半天）",
+    "noPendingRequests": "没有待处理的休假申请",
+    "review": "查看",
+    "approve": "批准",
+    "reject": "拒绝",
+    "remarksPlaceholder": "备注（可选）",
+    "directReports": "直接下属",
+    "teamMembersReporting": "{{count}} 名团队成员向您汇报",
+    "viewProfile": "查看资料",
+    "loadingTeam": "正在加载团队...",
+    "noDirectReports": "未找到直接下属。当员工被分配给您作为汇报经理时，您将在此处看到团队成员。"
+  },
+  "billing": {
+    "title": "账单",
+    "subtitle": "管理订阅、发票、付款和账单概览。",
+    "tabs": {
+      "subscriptions": "订阅",
+      "invoices": "发票",
+      "payments": "付款",
+      "overview": "概览"
+    },
+    "monthlyCost": "月费",
+    "perMonth": "/月",
+    "noSubscriptions": "还没有订阅。请从模块页面订阅模块。",
+    "labels": {
+      "plan": "套餐",
+      "seats": "席位",
+      "pricePerSeat": "单席价格",
+      "billingCycle": "计费周期"
+    },
+    "full": "（已满）",
+    "editTooltip": "编辑订阅",
+    "cancelTooltip": "取消订阅",
+    "cycles": {
+      "monthly": "月度",
+      "quarterly": "季度",
+      "annual": "年度"
+    },
+    "editModal": {
+      "title": "编辑订阅",
+      "planTier": "套餐等级",
+      "totalSeats": "席位总数",
+      "currentlyUsing": "当前使用 {{count}} 个席位",
+      "cannotReduce": "无法减少到 {{count}} 以下（使用中）",
+      "billingCycle": "计费周期",
+      "changes": "变更：",
+      "plan": "套餐",
+      "seats": "席位",
+      "cycle": "周期",
+      "save": "保存更改",
+      "saving": "保存中..."
+    },
+    "cancelModal": {
+      "title": "取消订阅？",
+      "message": "此操作将取消订阅并吓回所有已分配席位的访问权限。此操作无法撤销。",
+      "keep": "保留",
+      "yesCancel": "是，取消",
+      "cancelling": "取消中..."
+    },
+    "toasts": {
+      "updated": "订阅更新成功",
+      "updateFailed": "更新订阅失败",
+      "cancelled": "订阅已取消",
+      "cancelFailed": "取消订阅失败",
+      "errorPrefix": "错误"
+    },
+    "overview": {
+      "noData": "暂无账单数据。",
+      "outstandingBalance": "未结余额",
+      "nextInvoiceDate": "下次发票日期",
+      "monthlyRecurring": "月度循环",
+      "paymentStatus": "付款状态",
+      "overdue": "逾期",
+      "pastDue": "拖欠",
+      "allPaid": "已全部支付"
+    },
+    "invoices": {
+      "loading": "正在加载发票...",
+      "none": "暂无发票。",
+      "number": "发票号",
+      "date": "日期",
+      "dueDate": "到期日",
+      "amount": "金额",
+      "status": "状态",
+      "pagination": "第 {{page}} / {{totalPages}} 页，共 {{total}} 张发票",
+      "previous": "上一页",
+      "next": "下一页",
+      "downloadPdf": "下载 PDF",
+      "payNow": "立即付款",
+      "processing": "处理中..."
+    },
+    "payments": {
+      "loading": "正在加载付款...",
+      "none": "暂无付款记录。",
+      "date": "日期",
+      "amount": "金额",
+      "method": "方式",
+      "reference": "参考",
+      "invoice": "发票",
+      "pagination": "第 {{page}} / {{totalPages}} 页，共 {{total}} 笔付款"
+    }
+  },
+  "roles": {
+    "employee": "员工",
+    "manager": "经理",
+    "hr_admin": "HR 管理员",
+    "org_admin": "组织管理员",
+    "super_admin": "超级管理员",
+    "page": {
+      "title": "角色与权限",
+      "subtitle": "管理谁可以做什么。系统角色附带合理的默认设置;创建自定义角色以进行更精细的控制。",
+      "newCustomRole": "新建自定义角色",
+      "systemRolesTitle": "系统角色",
+      "systemRolesSubtitle": "内置模板。可按组织编辑 — 您的编辑不会影响其他组织。",
+      "customRolesTitle": "自定义角色",
+      "customRolesSubtitle": "由您的组织创建。在每个用户的资料页面进行分配。",
+      "loadingRoles": "正在加载角色…",
+      "noSystemRoles": "未找到系统角色。运行种子迁移?",
+      "noCustomRolesPrefix": "暂无自定义角色。",
+      "noCustomRolesCreateOne": "创建一个",
+      "noCustomRolesSuffix": "以授予细粒度访问权限,而无需更改用户的主要角色。",
+      "badgeSystem": "系统",
+      "badgeCustomized": "已自定义",
+      "badgeCustomizedTooltip": "此组织已自定义此系统角色。重置以恢复为全局默认值。",
+      "permissionsCount_one": "{{count}} 个权限",
+      "permissionsCount_other": "{{count}} 个权限",
+      "editRoleTooltip": "编辑角色",
+      "deleteRoleTooltip": "删除角色",
+      "resetRoleTooltip": "重置为默认",
+      "createCustomRoleTitle": "创建自定义角色",
+      "editSystemRoleTitle": "编辑系统角色",
+      "editRoleTitle": "编辑角色",
+      "permissionsSelected": "已选择 {{total}} 个权限中的 {{selected}} 个",
+      "roleNameLabel": "角色名称",
+      "roleNameLocked": "(系统角色 — 名称锁定)",
+      "roleNamePlaceholder": "例如: 工资审批人",
+      "descriptionLabel": "描述",
+      "descriptionOptional": "(可选)",
+      "descriptionPlaceholder": "此角色用途…",
+      "searchPermissionsPlaceholder": "按名称、键或描述搜索权限…",
+      "noPermissionsMatch": "没有权限与 \"{{query}}\" 匹配。",
+      "createRoleButton": "创建角色",
+      "saveChanges": "保存更改",
+      "resetTitle": "重置为默认?",
+      "deleteTitle": "删除自定义角色?",
+      "resetBody": "将 \"{{name}}\" 重置为系统默认权限?您的自定义设置将被丢弃。",
+      "deleteBody": "删除自定义角色 \"{{name}}\"?它将从所有分配给它的用户中移除。",
+      "resetButton": "重置",
+      "deleteButton": "删除",
+      "requestFailed": "请求失败"
+    },
+    "descriptions": {
+      "employee": "仅自助服务 — 个人资料、考勤、请假、工资单。",
+      "manager": "团队范围访问 — 查看和审批直接下属。",
+      "hr_admin": "完整的人力资源访问权限(员工、工资、请假等),不包括账单和角色管理。",
+      "org_admin": "完整的组织访问权限,包括账单、订阅和角色管理。",
+      "super_admin": "跨所有组织的平台范围访问。"
+    }
+  },
+  "modulesAccess": {
+    "title": "模块访问权限",
+    "subtitle": "管理哪些员工可以访问每个模块。",
+    "modulesCount": "{{count}} 个模块",
+    "employeesCount": "{{count}} 名员工",
+    "seatsAssignedCount": "已分配 {{count}} 个席位",
+    "searchPlaceholder": "按姓名、邮箱、职位或员工代码搜索...",
+    "allEmployees": "所有员工",
+    "enabledFor": "已启用",
+    "notEnabledFor": "未启用",
+    "enabledSuffix": "已启用",
+    "notEnabledSuffix": "未启用",
+    "loading": "正在加载员工...",
+    "noEmployees": "未找到员工",
+    "matchingSearch": "与您的搜索匹配",
+    "withFilter": "使用此筛选",
+    "table": {
+      "employee": "员工",
+      "role": "角色",
+      "designation": "职位",
+      "modules": "模块"
+    },
+    "confirm": {
+      "title": "禁用模块访问权限",
+      "subtitle": "此操作可能删除模块中的用户数据",
+      "message": "您确定要移除 <strong>{{user}}</strong> 对 <strong>{{module}}</strong> 的访问权限吗？此模块中的数据可能被永久删除。",
+      "cancel": "取消",
+      "remove": "移除访问",
+      "removing": "移除中..."
+    },
+    "pagination": {
+      "showing": "显示第 {{from}}–{{to}} 条，共 {{total}} 名员工",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "syncAlerts": {
+      "enabledSynced": "模块已启用，用户同步成功",
+      "enabledSkipped": "席位已分配。模块未配置同步 API。",
+      "enabledPartial": "席位已分配但模块同步失败 ({{status}})。",
+      "enableFailed": "启用模块失败",
+      "disabledSynced": "模块已禁用，用户已移除",
+      "disabledPartial": "席位已移除但模块同步失败 ({{status}})",
+      "disableFailed": "禁用模块失败"
+    }
+  },
+  "modulesPage": {
+    "title": "模块市场",
+    "subtitle": "为您的组织浏览和订阅 EMP 模块。",
+    "aiBannerTitle": "所有模块均包含 EMP AI",
+    "aiBannerDesc": "由 AI 驱动的智能 HR 助手 — 提问、获取洞察、跨所有模块自动化任务。",
+    "coreIncludedFree": "核心 — 免费包含",
+    "freeTier": "免费层",
+    "comingSoon": "即将推出",
+    "seatsAssigned": "已分配 {{total}} 个席位中的 {{used}} 个",
+    "active": "活跃",
+    "subscribed": "已订阅",
+    "unsubscribe": "取消订阅",
+    "subscribe": "订阅",
+    "notSubscribed": "未订阅",
+    "loading": "正在加载模块...",
+    "areYouSure": "您确定吗？",
+    "cancelling": "取消中...",
+    "yesCancel": "是，取消",
+    "subscriptionCancelled": "订阅已成功取消。",
+    "cancelFailed": "取消订阅失败。",
+    "subscriptionCreated": "订阅已创建。发票将很快生成。"
+  },
+  "helpdesk": {
+    "list": {
+      "title": "所有工单",
+      "subtitle": "管理整个组织的服务台工单。",
+      "searchPlaceholder": "搜索工单...",
+      "search": "搜索",
+      "allStatuses": "所有状态",
+      "allCategories": "所有类别",
+      "allPriorities": "所有优先级",
+      "resolvedToday": "今日已解决",
+      "resolvedOn": "于 {{date}} 解决",
+      "clearResolvedFilter": "清除解决日期筛选",
+      "loading": "正在加载工单...",
+      "empty": "未找到工单。",
+      "colId": "ID",
+      "colSubject": "主题",
+      "colCategory": "类别",
+      "colPriority": "优先级",
+      "colStatus": "状态",
+      "colRaisedBy": "提交人",
+      "colAssignedTo": "分配给",
+      "colSla": "SLA",
+      "colCreated": "创建时间",
+      "unassigned": "未分配",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 项）",
+      "previous": "上一页",
+      "next": "下一页",
+      "category": {
+        "leave": "请假",
+        "payroll": "薪资",
+        "benefits": "福利",
+        "it": "IT",
+        "facilities": "设施",
+        "onboarding": "入职",
+        "policy": "政策",
+        "general": "常规"
+      },
+      "status": {
+        "open": "打开",
+        "in_progress": "处理中",
+        "awaiting_response": "等待回复",
+        "resolved": "已解决",
+        "closed": "已关闭",
+        "reopened": "重新打开"
+      },
+      "priority": {
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "urgent": "紧急"
+      },
+      "sla": {
+        "breached": "已违反",
+        "at-risk": "有风险",
+        "on-track": "正常"
+      }
+    },
+    "title": "帮助中心",
+    "myTickets": "我的工单",
+    "myTicketsPage": {
+      "title": "我的工单",
+      "subtitle": "跟踪您的服务台工单并提交新请求。",
+      "raiseTicket": "创建工单",
+      "newTicket": "新建服务台工单",
+      "category": "类别",
+      "priorityLabel": "优先级",
+      "subject": "主题",
+      "subjectPlaceholder": "简要描述您的问题",
+      "description": "描述",
+      "descriptionPlaceholder": "详细描述您的问题...",
+      "cancel": "取消",
+      "submitting": "提交中...",
+      "submit": "提交工单",
+      "tabAll": "全部",
+      "noTickets": "还没有工单",
+      "noTicketsHint": "点击\"创建工单\"提交您的第一个服务台请求。",
+      "assigned": "已分配：{{name}}",
+      "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页",
+      "cat": {
+        "leave": "请假",
+        "payroll": "薪资",
+        "benefits": "福利",
+        "it": "IT",
+        "facilities": "设施",
+        "onboarding": "入职",
+        "policy": "政策",
+        "general": "常规"
+      },
+      "priority": {
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "urgent": "紧急"
+      },
+      "status": {
+        "open": "打开",
+        "in_progress": "处理中",
+        "awaiting_response": "等待回复",
+        "resolved": "已解决",
+        "closed": "已关闭",
+        "reopened": "已重开"
+      }
+    },
+    "allTickets": "所有工单",
+    "createTicket": "创建工单",
+    "knowledgeBase": "知识库",
+    "subject": "主题",
+    "category": "分类",
+    "priority": "优先级",
+    "slaStatus": "SLA状态"
+  },
+  "positions": {
+    "headcountPlans": {
+      "title": "人员编制规划",
+      "subtitle": "规划并跟踪各部门的人员增长。",
+      "newPlan": "新建计划",
+      "createTitle": "创建人员编制计划",
+      "planTitleLabel": "标题",
+      "planTitlePlaceholder": "2026年Q2 工程部招聘",
+      "fiscalYear": "财政年度",
+      "selectYear": "选择年度",
+      "quarter": "季度",
+      "annualOrNone": "年度 / 无",
+      "department": "部门",
+      "orgWide": "全组织",
+      "orgWideShort": "全组织",
+      "plannedHeadcount": "计划人数",
+      "currentHeadcount": "当前人数",
+      "approvedHeadcount": "已批准人数",
+      "budgetForm": "预算(分)",
+      "budget": "预算",
+      "notes": "备注",
+      "currency": "货币",
+      "create": "创建计划",
+      "creating": "创建中...",
+      "cancel": "取消",
+      "close": "关闭",
+      "failedCreate": "创建计划失败",
+      "allStatuses": "所有状态",
+      "statusDraft": "草稿",
+      "statusSubmitted": "已提交",
+      "statusApproved": "已批准",
+      "statusRejected": "已拒绝",
+      "colPlan": "计划",
+      "colPlanned": "计划",
+      "colApproved": "已批准",
+      "colCurrent": "当前",
+      "colStatus": "状态",
+      "colActions": "操作",
+      "loading": "加载中...",
+      "noPlans": "未找到人员编制计划",
+      "actionSubmit": "提交",
+      "actionApprove": "批准",
+      "actionReject": "拒绝",
+      "rejectPrompt": "拒绝原因(可选):",
+      "createdBy": "创建者",
+      "createdAt": "创建时间",
+      "pageOf": "第 {{page}} 页,共 {{total_pages}} 页(共 {{total}} 条)",
+      "previous": "上一页",
+      "next": "下一页",
+      "alertPlannedInvalid": "计划人数必须为 0 或更大。",
+      "alertCurrentInvalid": "当前人数必须为 0 或更大。",
+      "searchPlaceholder": "按计划名称或财年搜索……",
+      "allDepartments": "全部部门",
+      "allYears": "全部年份",
+      "failedApprove": "审批计划失败",
+      "failedReject": "驳回计划失败",
+      "failedSubmit": "提交计划失败"
+    },
+    "vacancies": {
+      "title": "公开空缺",
+      "subtitle": "尚未补足人员的职位。",
+      "positionsWithOpenings_one": "{{count}} 个职位有空缺",
+      "positionsWithOpenings_other": "{{count}} 个职位有空缺",
+      "loading": "正在加载空缺...",
+      "noVacanciesTitle": "没有公开空缺",
+      "noVacanciesSubtitle": "所有职位均已配齐。",
+      "unassigned": "未分配",
+      "openings_one": "个空缺",
+      "openings_other": "个空缺",
+      "filledRatio": "{{filled}}/{{budget}} 已补足",
+      "mark": "标记为已补足",
+      "marking": "标记中...",
+      "markSuccess": "已将\"{{title}}\"标记为已补足。",
+      "markSuccessGeneric": "职位已标记为已补足。",
+      "markError": "将职位标记为已补足失败",
+      "confirmTitle": "是否将\"{{title}}\"标记为已补足?",
+      "confirmDescription": "此职位将从公开空缺列表中移除。"
+    },
+    "list": {
+      "title": "所有职位",
+      "subtitle": "管理整个组织的预算职位。",
+      "createPosition": "创建职位",
+      "newPosition": "新建职位",
+      "titleLabel": "标题",
+      "none": "无",
+      "employmentType": "雇佣类型",
+      "fullTime": "全职",
+      "partTime": "兼职",
+      "contract": "合同",
+      "intern": "实习生",
+      "headcountBudget": "人员预算",
+      "minSalary": "最低薪资(分)",
+      "maxSalary": "最高薪资(分)",
+      "jobDescription": "职位描述",
+      "criticalRole": "关键岗位",
+      "creating": "创建中...",
+      "failedCreate": "创建职位失败",
+      "createSuccess": "已成功创建职位\"{{title}}\"。",
+      "searchPlaceholder": "按标题或编号搜索...",
+      "allDepartments": "所有部门",
+      "allStatuses": "所有状态",
+      "statusActive": "活动中",
+      "statusFilled": "已补足",
+      "statusFrozen": "冻结",
+      "statusClosed": "已关闭",
+      "colCode": "编号",
+      "colTitle": "标题",
+      "colType": "类型",
+      "colHeadcount": "人数",
+      "colCritical": "关键",
+      "noPositions": "未找到职位",
+      "deleteTooltip": "删除职位",
+      "editTooltip": "编辑职位",
+      "pageOf": "第 {{page}} 页,共 {{total_pages}} 页(共 {{total}} 条)",
+      "deleteTitle": "删除职位?",
+      "deleteConfirm": "删除 {{title}}?活动分配将被终止,职位将关闭。此操作无法撤消。",
+      "deleting": "正在删除...",
+      "failedDelete": "删除职位失败",
+      "allTypes": "全部类型",
+      "criticalOnly": "仅关键岗位"
+    },
+    "dashboard": {
+      "title": "职位仪表盘",
+      "subtitle": "职位、人员编制和人力规划概览。",
+      "loadingDashboard": "仪表盘加载中...",
+      "allPositions": "所有职位",
+      "totalPositions": "职位总数",
+      "budgetHeadcount": "预算:{{count}} 人",
+      "filled": "已补足",
+      "fillRate": "补足率 {{pct}}%",
+      "noBudget": "未设置预算",
+      "vacant": "空缺",
+      "viewVacancies": "查看空缺",
+      "criticalVacancies": "关键空缺",
+      "unfilledCritical": "未补足的关键岗位",
+      "departmentBreakdown": "按部门分布",
+      "noData": "暂无数据",
+      "filledVacantRatio": "{{filled}}/{{budget}} 已补足({{vacant}} 空缺)",
+      "headcountPlanning": "人员编制规划",
+      "viewPlans": "查看计划",
+      "planned": "已计划",
+      "approved": "已批准",
+      "current": "当前",
+      "activePlans": "活跃计划",
+      "positionStatus": "职位状态"
+    }
+  },
+  "audit": {
+    "title": "审计日志",
+    "subtitle": "用于 SOC 2 合规的完整活动记录。",
+    "filters": "筛选",
+    "clearAll": "清除全部",
+    "actionType": "操作类型",
+    "allActions": "所有操作",
+    "fromDate": "起始日期",
+    "toDate": "结束日期",
+    "showingResults": "显示 {{total}} 条筛选结果中的 {{count}} 条",
+    "showingFor": "针对",
+    "showingFrom": "从",
+    "showingTo": "到",
+    "colTime": "时间",
+    "colAction": "操作",
+    "colUser": "用户",
+    "colResource": "资源",
+    "colIp": "IP 地址",
+    "system": "系统",
+    "userHash": "用户 #{{id}}",
+    "noMatchingFilters": "没有审计日志与筛选条件匹配。",
+    "noLogs": "暂无审计日志。",
+    "clearFilters": "清除筛选",
+    "pageOf": "第 {{page}} 页,共 {{total_pages}} 页(共 {{total}} 条)",
+    "actions": {
+      "login": "登录",
+      "logout": "登出",
+      "login_failed": "登录失败",
+      "register": "注册",
+      "password_change": "修改密码",
+      "password_reset": "重置密码",
+      "user_created": "创建用户",
+      "user_updated": "更新用户",
+      "user_deactivated": "停用用户",
+      "user_invited": "邀请用户",
+      "org_updated": "更新组织",
+      "subscription_created": "创建订阅",
+      "subscription_updated": "更新订阅",
+      "subscription_cancelled": "取消订阅",
+      "seat_assigned": "分配席位",
+      "seat_revoked": "撤销席位",
+      "token_issued": "颁发令牌",
+      "token_revoked": "撤销令牌",
+      "oauth_authorize": "OAuth 授权",
+      "oauth_token": "OAuth 令牌",
+      "profile_updated": "更新资料",
+      "attendance_checkin": "考勤签到",
+      "attendance_checkout": "考勤签退",
+      "leave_applied": "申请请假",
+      "leave_approved": "批准请假",
+      "leave_rejected": "拒绝请假",
+      "leave_cancelled": "取消请假",
+      "document_uploaded": "上传文档",
+      "document_verified": "验证文档",
+      "announcement_created": "创建公告",
+      "policy_created": "创建政策",
+      "policy_acknowledged": "确认政策"
+    },
+    "searchActions": "搜索操作类型……",
+    "noActionMatches": "无匹配的操作"
+  },
+  "employees": {
+    "directory": {
+      "title": "员工目录",
+      "subtitle": "浏览和搜索您组织的员工。",
+      "exportExcel": "导出 Excel",
+      "exporting": "导出中...",
+      "bulkUpdate": "批量更新",
+      "pendingInvitations": "待处理邀请",
+      "importEmployees": "导入员工",
+      "inviteAll": "邀请全部",
+      "inviteAllTooltip": "向所有尚未设置密码的员工发送邀请",
+      "inviteEmployee": "邀请员工",
+      "searchPlaceholder": "按姓名、邮箱、职位或部门搜索...",
+      "allDepartments": "所有部门",
+      "allLocations": "所有位置",
+      "allRoles": "所有角色",
+      "roleEmployee": "员工",
+      "roleManager": "经理",
+      "roleHrAdmin": "HR 管理员",
+      "roleOrgAdmin": "组织管理员",
+      "colEmployee": "员工",
+      "colEmail": "邮箱",
+      "colDesignation": "职位",
+      "colRole": "角色",
+      "colEmpCode": "工号",
+      "noEmployees": "未找到员工",
+      "statusActive": "活动",
+      "statusInactive": "停用",
+      "sendInviteTooltip": "向 {{email}} 发送邀请",
+      "sendInviteAria": "向 {{name}} 发送邀请",
+      "editTooltip": "编辑员工",
+      "editAria": "编辑 {{name}}",
+      "deleteSelfTooltip": "不能删除自己的账户",
+      "deleteTooltip": "删除员工",
+      "deleteAria": "删除 {{name}}",
+      "workforceOverview": "员工概览",
+      "totalEmployees": "员工总数",
+      "activeEmployees": "在职员工",
+      "departments": "部门",
+      "newJoinersThisMonth": "本月新员工",
+      "allStatuses": "所有状态",
+      "moreFilters": "更多筛选",
+      "viewMode": "目录视图",
+      "tableView": "表格视图",
+      "gridView": "网格视图",
+      "showingEmployees": "显示第 {{from}}–{{to}} 位，共 {{total}} 位员工",
+      "sortBy": "员工排序",
+      "sortNameAsc": "排序：姓名（A–Z）",
+      "sortNameDesc": "排序：姓名（Z–A）",
+      "sortNewest": "排序：最新",
+      "location": "地点",
+      "employeeId": "员工编号",
+      "employeeType": "员工类型",
+      "selectAllEmployees": "选择此页面上的所有员工",
+      "selectEmployee": "选择 {{name}}",
+      "viewProfile": "查看资料",
+      "viewEmployeeAria": "查看 {{name}}",
+      "moreActionsAria": "{{name}} 的更多操作",
+      "sendInvitation": "发送邀请",
+      "deleteEmployee": "删除员工"
+    }
+  },
+  "accountSecurity": {
+    "title": "账户安全",
+    "subtitle": "更新您用于登录 EOR 的密码。",
+    "changePassword": "修改密码",
+    "hint": "请使用您不会在其他任何地方重复使用的密码。必须至少 8 个字符，包含大写字母、小写字母、数字和一个特殊字符。",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "updatePassword": "更新密码",
+    "updating": "正在更新...",
+    "updated": "密码已更新。",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "errors": {
+      "currentRequired": "请输入您的当前密码。",
+      "minLength": "新密码必须至少为 {{min}} 个字符。",
+      "upper": "新密码必须包含至少一个大写字母。",
+      "lower": "新密码必须包含至少一个小写字母。",
+      "digit": "新密码必须包含至少一个数字。",
+      "special": "新密码必须包含至少一个特殊字符。",
+      "sameAsCurrent": "新密码必须与当前密码不同。",
+      "mismatch": "密码不匹配。",
+      "updateFailed": "无法更新密码。"
+    }
+  },
+  "feed": {
+    "page": {
+      "backToDashboard": "返回仪表板",
+      "title": "公司动态",
+      "admin": "管理员",
+      "subtitleHr": "浏览、发布和管理全公司的对话。",
+      "subtitleEmployee": "分享动态、提出问题、庆祝成就。",
+      "refresh": "刷新动态",
+      "searchPlaceholder": "按关键词搜索帖子...",
+      "clearSearch": "清除搜索",
+      "allPosts": "全部帖子",
+      "myPosts": "我的帖子",
+      "results_one": "{{count}} 条结果",
+      "results_other": "{{count}} 条结果",
+      "composerPlaceholder": "你在想什么？",
+      "loadingMore": "加载更多...",
+      "statTotalPosts": "帖子总数",
+      "statComments": "评论",
+      "statActive7d": "活跃 7 天",
+      "statContributors": "贡献者",
+      "topContributors": "主要贡献者",
+      "last30d": "最近 30 天",
+      "trendingWeek": "本周热门",
+      "emptySearch": "没有帖子符合该搜索。",
+      "emptyMine": "您还没有发布过。",
+      "emptyAll": "这里还空空如也 — 来发第一条吧。",
+      "emptySearchHint": "尝试其他关键词。",
+      "emptyHint": "使用上方的输入框分享内容。"
+    }
+  },
+  "wellness": {
+    "checkIn": {
+      "completeTitle": "打卡完成！",
+      "alreadyTitle": "您今天已经打卡",
+      "completeText": "很棒，今天花时间关注了自己的状态。",
+      "alreadyText": "您可以明天提交下一次打卡。",
+      "viewMyWellness": "查看我的健康",
+      "explorePrograms": "探索项目",
+      "loading": "加载中...",
+      "title": "每日打卡",
+      "moodQuestion": "您今天感觉如何？",
+      "selectMood": "请选择您的心情",
+      "energyLevel": "能量水平",
+      "low": "低",
+      "high": "高",
+      "sleepHours": "睡眠（小时）",
+      "sleepPlaceholder": "例如 7.5",
+      "exerciseMinutes": "运动（分钟）",
+      "exercisePlaceholder": "例如 30",
+      "notesLabel": "备注（可选）",
+      "notesPlaceholder": "今天过得怎么样？有什么想法吗？",
+      "error": "打卡失败。请重试。",
+      "submitting": "提交中...",
+      "submit": "提交打卡",
+      "mood": {
+        "great": "很好",
+        "good": "不错",
+        "okay": "一般",
+        "low": "低落",
+        "stressed": "压力大"
+      }
+    }
+  },
+  "forum": {
+    "page": {
+      "title": "社区论坛",
+      "subtitle": "与同事联系、讨论并分享想法。",
+      "dashboard": "仪表板",
+      "newPost": "发帖",
+      "categories": "分类",
+      "loadingCategories": "正在加载分类...",
+      "categoriesError": "加载分类失败。请尝试刷新页面。",
+      "noCategories": "还没有分类。",
+      "noCategoriesHr": "从仪表板创建一个。",
+      "noCategoriesEmployee": "请联系您的人力资源团队设置分类。",
+      "postsCount_one": "{{count}} 个帖子",
+      "postsCount_other": "{{count}} 个帖子",
+      "searchPlaceholder": "搜索讨论...",
+      "sortRecent": "最新",
+      "sortPopular": "热门",
+      "sortTrending": "趋势",
+      "postsError": "加载帖子失败",
+      "tryRefresh": "请尝试刷新页面。",
+      "noPosts": "还没有帖子",
+      "beFirst": "来发起第一个讨论吧！",
+      "startDiscussion": "发起讨论",
+      "pinned": "已置顶",
+      "locked": "已锁定",
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前",
+      "postType": {
+        "discussion": "讨论",
+        "question": "问题",
+        "idea": "想法",
+        "poll": "投票"
+      }
+    },
+    "create": {
+      "title": "创建新帖子",
+      "category": "分类",
+      "selectCategory": "选择分类...",
+      "noCategories": "没有分类 — 请在论坛仪表板中创建",
+      "postType": "帖子类型",
+      "fieldTitle": "标题",
+      "titlePlaceholder": "你在想什么？",
+      "content": "内容",
+      "contentPlaceholder": "分享你的想法...",
+      "contentPlaceholderQuestion": "详细描述你的问题...",
+      "contentPlaceholderIdea": "分享你的想法并说明其潜在影响...",
+      "tags": "标签",
+      "tagsHint": "（逗号分隔，可选）",
+      "tagsPlaceholder": "例如 工程、文化、流程",
+      "error": "创建帖子失败。请重试。",
+      "cancel": "取消",
+      "publishing": "发布中...",
+      "publish": "发布帖子"
+    }
+  },
+  "orgChart": {
+    "title": "组织结构图",
+    "subtitle": "可视化整个组织的汇报结构。",
+    "people": "人员",
+    "viewAllPeople": "查看所有人员",
+    "managers": "经理",
+    "viewAllManagers": "查看所有经理",
+    "departments": "部门",
+    "viewAllDepartments": "查看所有部门",
+    "searchPlaceholder": "按姓名、职位或部门搜索...",
+    "clearSearch": "清除搜索",
+    "downloadPng": "下载为 PNG",
+    "downloadPdf": "下载为 PDF（A3 横向）",
+    "loading": "正在加载组织结构图...",
+    "empty": "未找到员工。添加员工以查看组织结构图。",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fullscreen": "切换全屏",
+    "panHint": "滚动缩放 · 拖动平移",
+    "noDesignation": "无职位",
+    "noMatches": "无匹配项。",
+    "collapseTeam": "收起团队",
+    "expandReports_one": "展开 {{count}} 名下属",
+    "expandReports_other": "展开 {{count}} 名下属",
+    "modalPeople": "人员（{{count}}）",
+    "modalManagers": "经理（{{count}}）",
+    "modalDepartments": "部门（{{count}}）",
+    "filterDepartments": "筛选部门或人员...",
+    "filterPeople": "按姓名、职位或部门筛选...",
+    "reportsBadge_one": "{{count}} 名下属",
+    "reportsBadge_other": "{{count}} 名下属",
+    "exportedPng": "组织结构图已导出为 PNG。",
+    "exportedPdf": "组织结构图已导出为 PDF。",
+    "exportFailed": "导出失败。请重试。",
+    "personCount_one": "{{count}} 人",
+    "personCount_other": "{{count}} 人"
+  },
+  "probation": {
+    "title": "试用期跟踪",
+    "subtitle": "监控和管理员工试用期。",
+    "customizeEmail": "自定义邮件模板",
+    "cardOnProbation": "试用期中",
+    "cardUpcoming": "即将到期（30天）",
+    "cardConfirmedThisMonth": "本月已确认",
+    "cardOverdue": "已逾期",
+    "filteredByCard": "按卡片筛选。",
+    "clearFilter": "清除筛选",
+    "upcomingConfirmations": "即将确认（{{count}}）",
+    "daysLeft": "剩余 {{count}} 天",
+    "searchPlaceholder": "按姓名、编号或邮箱搜索…",
+    "allDepartments": "所有部门",
+    "allLocations": "所有地点",
+    "employeesOnProbation": "试用期员工",
+    "colEmployee": "员工",
+    "colDepartment": "部门",
+    "colLocation": "地点",
+    "colJoinDate": "入职日期",
+    "colProbationEnds": "试用期结束",
+    "colDaysRemaining": "剩余天数",
+    "colStatus": "状态",
+    "colActions": "操作",
+    "daysOverdue": "逾期 {{count}} 天",
+    "daysShort": "{{count}} 天",
+    "confirm": "确认",
+    "extend": "延长",
+    "emptyFiltered": "没有员工符合您的筛选条件。",
+    "emptyConfirmed": "本月没有确认的员工。",
+    "emptyOverdue": "没有逾期的试用期。",
+    "emptyUpcoming": "未来 30 天内没有即将到期的确认。",
+    "emptyDefault": "目前没有处于试用期的员工。",
+    "pageOf": "第 {{page}} 页，共 {{total_pages}} 页 · 共 {{total}} 条",
+    "previous": "上一页",
+    "next": "下一页",
+    "confirmModalTitle": "确认试用期",
+    "confirmModalBody": "确认 <strong>{{name}}</strong> 的试用期并将其标记为正式员工。",
+    "sendConfirmationEmail": "发送确认邮件",
+    "sendsTo": "发送至 {{email}}",
+    "noEmailOnFile": "该员工没有登记邮箱地址。",
+    "loadingEmail": "正在加载邮件…",
+    "subject": "主题",
+    "message": "消息",
+    "editDefaultTemplate": "编辑默认模板",
+    "editMessageHint": "您可以在发送前为该员工编辑此消息。",
+    "cancel": "取消",
+    "working": "处理中…",
+    "sendEmailConfirm": "发送邮件并确认",
+    "confirmOnly": "仅确认",
+    "extendModalTitle": "延长试用期",
+    "extendModalBody": "延长 <strong>{{name}}</strong> 的试用期。",
+    "newEndDate": "新结束日期",
+    "reason": "原因",
+    "reasonPlaceholder": "为什么要延长试用期？",
+    "extending": "正在延长...",
+    "templateModalTitle": "试用期确认邮件",
+    "templateModalDesc": "自定义确认员工试用期时发送的邮件。",
+    "usingDefault": "当前使用内置默认模板。",
+    "subjectPlaceholder": "例如 试用期已确认 — 欢迎加入，{{first_name}}！",
+    "insertToken": "插入 {{token}}",
+    "bodyPlaceholder": "尊敬的 {{employee_name}}，...",
+    "placeholderHint": "使用上方按钮插入占位符。段落之间留一个空行。",
+    "previewLabel": "预览（示例数据）",
+    "noSubject": "（无主题）",
+    "saving": "正在保存…",
+    "saveTemplate": "保存模板",
+    "status": {
+      "onProbation": "试用期中",
+      "confirmed": "已确认",
+      "extended": "已延长",
+      "terminated": "已解除"
+    },
+    "placeholder": {
+      "employeeName": "员工姓名",
+      "firstName": "名",
+      "designation": "职位",
+      "confirmationDate": "确认日期",
+      "joinDate": "入职日期",
+      "probationEnd": "试用期结束",
+      "manager": "经理",
+      "company": "公司"
+    },
+    "toast": {
+      "loadEmailFailed": "无法加载确认邮件。",
+      "confirmedEmailSent": "试用期已确认 — 确认邮件已发送。",
+      "confirmedEmailFailed": "试用期已确认。邮件无法发送（请检查邮件设置）。",
+      "confirmed": "试用期已确认。",
+      "confirmError": "无法确认试用期。请重试。",
+      "loadTemplateFailed": "无法加载模板。",
+      "templateSaved": "邮件模板已保存。",
+      "saveTemplateFailed": "无法保存模板。"
+    }
+  },
+  "attendanceSettings": {
+    "title": "考勤设置",
+    "subtitle": "控制员工的签到签退方式，并按日期范围覆盖特定用户的规则。",
+    "allowedChannels": "允许的签到渠道",
+    "allowedChannelsDesc": "员工只能通过您在此启用的渠道签到/签退。下方的按用户覆盖可为特定人员授予或撤销渠道。",
+    "loading": "加载中…",
+    "channel": {
+      "dashboard": "仪表板（网页）",
+      "biometric": "生物识别设备",
+      "app": "EOR 移动应用"
+    },
+    "channelDesc": {
+      "dashboard": "通过网页仪表板手动打卡",
+      "biometric": "通过生物识别设备进行人脸/指纹/二维码",
+      "app": "EOR Android / iOS 应用"
+    },
+    "enableGeofencing": "为移动应用启用地理围栏",
+    "enableGeofencingDesc": "指示 EOR 移动应用在允许打卡前根据您的地理围栏验证用户位置。仪表板和生物识别设备会忽略此设置。请在下方管理地理围栏。",
+    "updated": "考勤设置已更新",
+    "updateError": "无法更新考勤设置",
+    "atLeastOneChannel": "至少必须保留一个启用的渠道",
+    "geofences": "地理围栏",
+    "addGeofence": "添加地理围栏",
+    "geofencesDesc_one": "{{count}} 个活动地点。移动应用通过 <code>GET /me/policy</code> 接收此列表并在本地验证用户的 GPS。",
+    "geofencesDesc_other": "{{count}} 个活动地点。移动应用通过 <code>GET /me/policy</code> 接收此列表并在本地验证用户的 GPS。",
+    "noGeofences": "未配置地理围栏。点击<strong>添加地理围栏</strong>以创建。",
+    "overrides": "按用户覆盖",
+    "overridesDesc": "为特定员工在某个日期范围内覆盖组织级规则。结束日期过后，该员工将自动恢复为组织默认设置。",
+    "newOverride": "新建覆盖",
+    "searchEmployee": "按员工姓名或邮箱搜索…",
+    "loadingOverrides": "正在加载覆盖…",
+    "noOverridesMatch": "没有与您的搜索匹配的覆盖。",
+    "noOverrides": "未配置按用户覆盖。",
+    "mRadius": "半径 {{radius}} 米",
+    "editGeofence": "编辑地理围栏",
+    "deleteGeofence": "删除地理围栏",
+    "geofenceRemoved": "已删除地理围栏",
+    "removeGeofenceError": "无法删除地理围栏",
+    "removeGeofenceTitle": "删除地理围栏？",
+    "removeGeofenceDesc": "将删除“{{name}}”。任何固定到它的按用户覆盖将恢复为继承组织默认设置。",
+    "remove": "删除",
+    "cancel": "取消",
+    "close": "关闭",
+    "nameLabel": "名称",
+    "namePlaceholder": "班加罗尔总部",
+    "locationLabel": "位置",
+    "mapHint": "点击地图上任意位置或拖动图钉以设置位置。阴影圆圈表示当前半径。",
+    "geofenceCreated": "已创建地理围栏",
+    "geofenceUpdated": "已更新地理围栏",
+    "saveGeofenceError": "无法保存地理围栏",
+    "latitudeLabel": "纬度",
+    "longitudeLabel": "经度",
+    "radiusLabel": "半径（米）",
+    "radiusHint": "如果用户在坐标的此距离范围内，移动应用会视其为“在内”。",
+    "errNameRequired": "名称为必填项",
+    "errLatitude": "纬度必须介于 -90 和 90 之间",
+    "errLongitude": "经度必须介于 -180 和 180 之间",
+    "errRadius": "半径必须介于 10 和 50000 米之间",
+    "saveChanges": "保存更改",
+    "colEmployee": "员工",
+    "colChannels": "渠道",
+    "colGeofence": "地理围栏",
+    "colWindow": "时间段",
+    "colNote": "备注",
+    "userN": "用户 #{{id}}",
+    "inheritOrg": "继承组织",
+    "disabledForUser": "对该用户已禁用",
+    "only": "仅:",
+    "open": "无期限",
+    "editOverride": "编辑覆盖",
+    "deleteOverride": "删除覆盖",
+    "overrideRemoved": "已删除覆盖",
+    "removeOverrideError": "无法删除覆盖",
+    "removeOverrideTitle": "删除按用户覆盖？",
+    "removeOverrideDesc": "将删除 {{name}} 的覆盖。该用户将立即恢复为组织默认设置。",
+    "thisUser": "该用户",
+    "overrideCreated": "已创建覆盖",
+    "overrideUpdated": "已更新覆盖",
+    "saveOverrideError": "无法保存覆盖",
+    "errPickEmployee": "请先选择一名员工",
+    "errPickChannel": "请至少选择一个渠道，或切换为“继承组织”",
+    "errPickGeofence": "为自定义模式选择一个地理围栏",
+    "errEndBeforeStart": "结束日期不能早于开始日期",
+    "newOverrideTitle": "新建考勤覆盖",
+    "editOverrideTitle": "编辑考勤覆盖",
+    "change": "更改",
+    "searchNameEmail": "按姓名或邮箱搜索…",
+    "noMatches": "无匹配",
+    "allowedChannelsShort": "允许的渠道",
+    "inheritOrgDefault": "继承组织默认设置",
+    "geoModeInherit": "继承组织地理围栏",
+    "geoModeOff": "为该用户禁用地理围栏",
+    "geoModeCustom": "限制为单个地理围栏",
+    "geoModeInheritDesc": "用户在移动应用中可看到所有组织活动的地理围栏。",
+    "geoModeOffDesc": "移动应用接收一个空的地理围栏列表。",
+    "geoModeCustomDesc": "用户只能从所选位置签到。",
+    "selectGeofence": "选择一个地理围栏…",
+    "startDate": "开始日期",
+    "startDateLocked": "创建后无法编辑开始日期。",
+    "endDate": "结束日期",
+    "optional": "（可选）",
+    "endDateHint": "留空表示无期限覆盖。",
+    "notePlaceholder": "例如 在家办公2周、现场项目、休假代班…",
+    "createOverride": "创建覆盖"
+  },
+  "kioskPin": {
+    "backToBiometrics": "返回生物识别",
+    "title": "生物识别自助终端访问",
+    "subtitle": "管理您用于在生物识别自助终端设备上登录的个人 6 位 PIN。",
+    "status": "状态",
+    "loading": "加载中…",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "statusOnHint": "您可以使用您的邮箱和 6 位 PIN 在任何自助终端登录。",
+    "statusOffHint": "设置 6 位 PIN 以启用生物识别自助终端登录。",
+    "enableBiometric": "启用生物识别",
+    "changePin": "更改 PIN",
+    "disableBiometric": "禁用生物识别",
+    "panelEnableTitle": "设置 6 位 PIN",
+    "panelChangeTitle": "选择新的 6 位 PIN",
+    "panelDisableTitle": "使用您当前的 PIN 确认",
+    "panelDisableHint": "输入您现有的 6 位 PIN 以禁用生物识别自助终端登录。",
+    "panelSetHint": "请使用恰好 6 位数字。避免容易猜测的序列（例如 123456）。",
+    "currentPin": "当前 PIN",
+    "pin": "PIN",
+    "confirmPin": "确认 PIN",
+    "cancel": "取消",
+    "enable": "启用",
+    "updatePin": "更新 PIN",
+    "disable": "禁用",
+    "errSixDigits": "PIN 必须恰好为 6 位数字",
+    "errMismatch": "PIN 不匹配",
+    "errGeneric": "出现了问题",
+    "errEnable": "启用生物识别失败",
+    "errDisable": "禁用生物识别失败",
+    "errUpdate": "更新 PIN 失败",
+    "livenessTitle": "活体检测",
+    "livenessDesc": "在颁发登录令牌前，对每次自助终端的人脸采集运行防伪检查（眨眼/微动检测）。默认关闭；当您的设备和光照支持可靠检测后再开启。",
+    "enableLiveness": "启用活体检测",
+    "livenessOnHint": "活体检查正在自助终端身份验证中运行。",
+    "livenessOffHint": "活体检查已关闭 — 人脸采集按原样接受。",
+    "livenessSaved": "活体设置已保存。",
+    "errSaveLiveness": "保存活体设置失败",
+    "save": "保存",
+    "sensitivityLevel": "灵敏度级别",
+    "levelLow": "低",
+    "levelModerate": "中",
+    "levelHigh": "高",
+    "levelLowDesc": "宽松 — 更多重试成功；防伪保护较弱。",
+    "levelModerateDesc": "均衡（推荐）— 可捕获明显的伪造。",
+    "levelHighDesc": "严格 — 最适合共享自助终端；对更细微的信号也予以拒绝。",
+    "linkedOrgsTitle": "关联的组织",
+    "linkedOrgsDesc": "与姊妹组织的员工共享您的生物识别自助终端。为每个关联组织添加一个管理员邮箱 — 在他们下次自助终端登录后，所有关联组织的员工都可在同一台设备上打卡。各公司的薪资保持独立。",
+    "noOrgsLinked": "尚未关联任何组织。",
+    "userGone": "用户已不存在 — 请删除此条目",
+    "organizationN": "组织 #{{id}}",
+    "unlink": "取消关联",
+    "unlinkAria": "取消关联 {{email}}",
+    "errEnterEmail": "输入要关联的邮箱",
+    "linkOrganization": "关联组织",
+    "errAddOrg": "添加关联组织失败",
+    "errRemoveOrg": "移除关联组织失败"
+  },
+  "holidays": {
+    "title": "节假日",
+    "subtitle": "查看公司的节假日和休息日。",
+    "addHoliday": "添加节假日",
+    "holidayName": "节假日名称 *",
+    "date": "日期 *",
+    "endDate": "结束日期（可选，多天用）",
+    "description": "描述",
+    "optional": "可选",
+    "mandatoryHoliday": "强制节假日",
+    "mandatoryNote": "— 办公室关闭；出勤员工自动标记为节假日加班",
+    "cancel": "取消",
+    "adding": "正在添加...",
+    "addError": "添加节假日失败。",
+    "addSuccess": "已成功添加节假日\"{{title}}\"。",
+    "editHoliday": "编辑节假日",
+    "updating": "更新中...",
+    "editSuccess": "已成功更新节假日\"{{title}}\"。",
+    "editError": "更新节假日失败。",
+    "loading": "正在加载节假日...",
+    "empty": "尚无节假日列出。",
+    "emptyHint": "点击“添加节假日”开始。",
+    "past": "已过",
+    "mandatory": "强制",
+    "optionalBadge": "可选",
+    "mandatoryTooltip": "强制节假日 — 出勤员工自动标记为 HOT。点击改为可选。",
+    "optionalTooltip": "可选节假日 — 出勤员工保持 P。点击改为强制。",
+    "deleteHoliday": "删除节假日",
+    "deleteConfirm": "删除节假日？",
+    "deleteConfirmNamed": "删除节假日“{{title}}”？",
+    "delete": "删除",
+    "type": {
+      "regional": "地区",
+      "optional": "可选",
+      "public": "公共",
+      "national": "国家",
+      "religious": "宗教"
+    }
+  },
+  "surveyDashboard": {
+    "loading": "正在加载仪表板...",
+    "title": "调查仪表板",
+    "subtitle": "员工调查、敬业度和 eNPS 概览。",
+    "createSurvey": "创建调查",
+    "activeSurveys": "进行中的调查",
+    "totalResponses": "回复总数",
+    "avgResponseRate": "平均回复率",
+    "totalSurveys": "调查总数",
+    "enpsScore": "eNPS 分数",
+    "noEnps": "尚未完成任何 eNPS 调查",
+    "enpsExcellent": "优秀",
+    "enpsGood": "良好",
+    "enpsOkay": "一般",
+    "enpsNeedsImprovement": "需要改进",
+    "enpsRange": "范围：-100 到 +100",
+    "statusBreakdown": "调查状态明细",
+    "drafts": "草稿",
+    "active": "进行中",
+    "closed": "已关闭",
+    "organization": "组织",
+    "totalEmployees": "员工总数",
+    "surveysConducted": "已开展的调查",
+    "recentSurveys": "最近的调查",
+    "viewAll": "查看全部",
+    "colTitle": "标题",
+    "colType": "类型",
+    "colStatus": "状态",
+    "colResponses": "回复",
+    "colCreated": "创建时间",
+    "empty": "暂无调查。创建您的第一个调查以开始。",
+    "status": {
+      "draft": "草稿",
+      "active": "进行中",
+      "closed": "已关闭",
+      "archived": "已归档"
+    },
+    "type": {
+      "pulse": "脉搏",
+      "enps": "eNPS",
+      "engagement": "敬业度",
+      "custom": "自定义",
+      "onboarding": "入职",
+      "exit_survey": "离职调查"
+    }
+  },
+  "kb": {
+    "title": "知识库",
+    "subtitle": "查找常见问题和人力资源政策的答案。",
+    "newArticle": "新建文章",
+    "category": {
+      "leave": "休假",
+      "payroll": "薪资",
+      "benefits": "福利",
+      "it": "IT",
+      "facilities": "设施",
+      "onboarding": "入职",
+      "policy": "政策",
+      "general": "常规"
+    },
+    "searchPlaceholder": "搜索文章...",
+    "search": "搜索",
+    "all": "全部",
+    "loading": "正在加载文章...",
+    "noArticles": "未找到文章",
+    "tryDifferentSearch": "请尝试其他搜索词。",
+    "emptyHint": "知识库文章将显示在此处。",
+    "pageOf": "第 {{page}} 页，共 {{total_pages}} 页（共 {{total}} 条）",
+    "previous": "上一页",
+    "next": "下一页",
+    "deleteTitle": "删除文章？",
+    "deleteBody": "删除 <strong>{{title}}</strong>？这将取消发布该文章，员工将无法再看到它。",
+    "cancel": "取消",
+    "deleting": "正在删除...",
+    "delete": "删除",
+    "deleteError": "删除文章失败",
+    "editArticle": "编辑文章",
+    "newKbArticle": "新建知识库文章",
+    "titleLabel": "标题",
+    "titlePlaceholder": "文章标题",
+    "categoryLabel": "类别",
+    "published": "已发布",
+    "featured": "精选",
+    "contentLabel": "内容",
+    "contentPlaceholder": "撰写文章内容...",
+    "updating": "正在更新...",
+    "updateArticle": "更新文章",
+    "publishing": "正在发布...",
+    "publishArticle": "发布文章",
+    "backToKb": "返回知识库",
+    "edit": "编辑",
+    "byAuthor": "作者：{{author}}",
+    "viewsCount_one": "{{count}} 次浏览",
+    "viewsCount_other": "{{count}} 次浏览",
+    "wasHelpful": "这篇文章有帮助吗？",
+    "ratedHelpful": "您评价为有帮助。您可以随时更改投票。",
+    "ratedNotHelpful": "您评价为没有帮助。您可以随时更改投票。",
+    "yes": "是",
+    "no": "否",
+    "editArticleTooltip": "编辑文章",
+    "deleteArticleTooltip": "删除文章"
+  },
+  "surveyRespond": {
+    "title": "调查",
+    "subtitle": "完成进行中的调查并查看您过往的回复。",
+    "pending": "待完成的调查",
+    "noActive": "暂无进行中的调查",
+    "noActiveHint": "请稍后再来查看新的待完成调查。",
+    "anonymous": "匿名",
+    "dueBy": "截止日期 {{date}}",
+    "takeSurvey": "参与调查",
+    "type": {
+      "pulse": "脉搏",
+      "enps": "eNPS",
+      "engagement": "敬业度",
+      "custom": "自定义",
+      "onboarding": "入职",
+      "exit_survey": "离职调查"
+    },
+    "completed": "已完成",
+    "completedBadge": "已完成",
+    "responseHistory": "回复历史",
+    "colSurvey": "调查",
+    "colType": "类型",
+    "colSubmitted": "提交时间",
+    "colAnonymous": "匿名",
+    "yes": "是",
+    "no": "否",
+    "loadingSurvey": "正在加载调查...",
+    "thankYou": "谢谢！",
+    "submittedSuccess": "您的回复已成功提交。",
+    "backToSurveys": "返回调查",
+    "responsesAnonymous": "您的回复是匿名的",
+    "cancel": "取消",
+    "submitResponse": "提交回复",
+    "submitError": "提交回复失败。请重试。",
+    "notAtAllLikely": "完全不可能",
+    "extremelyLikely": "非常可能",
+    "textPlaceholder": "在此输入您的答案..."
+  },
+  "assetDashboard": {
+    "loading": "正在加载资产仪表板...",
+    "title": "资产仪表板",
+    "subtitle": "IT 设备和资产概览",
+    "viewAllAssets": "查看所有资产",
+    "totalAssets": "资产总数",
+    "available": "可用",
+    "assigned": "已分配",
+    "inRepair": "维修中",
+    "lostDamaged": "丢失 / 损坏",
+    "retired": "已报废",
+    "unaccounted_one": "{{count}} 项资产的状态无法识别 — 总数无法对账。请打开资产列表查看这些行。",
+    "unaccounted_other": "{{count}} 项资产的状态无法识别 — 总数无法对账。请打开资产列表查看这些行。",
+    "viewAll": "查看全部",
+    "warrantiesExpiring": "即将到期的保修（{{count}}）",
+    "expires": "到期 {{date}}",
+    "byCategory": "按类别",
+    "noAssets": "暂无资产",
+    "topAssignees": "主要领用人",
+    "assetsCount_one": "{{count}} 项资产",
+    "assetsCount_other": "{{count}} 项资产",
+    "noAssignments": "暂无分配",
+    "recentActivity": "最近活动",
+    "noActivity": "暂无最近活动",
+    "action": {
+      "created": "已创建",
+      "assigned": "已分配",
+      "returned": "已归还",
+      "sent_to_repair": "已送修",
+      "repaired": "已修复",
+      "retired": "已报废",
+      "lost": "丢失",
+      "found": "已找到",
+      "damaged": "已损坏",
+      "updated": "已更新"
+    }
+  },
+  "messageThread": {
+    "presence": {
+      "online": "在线",
+      "typing": "正在输入…",
+      "typingOne": "{{name}} 正在输入…",
+      "typingTwo": "{{name1}} 和 {{name2}} 正在输入…",
+      "typingMany_one": "{{count}} 人正在输入…",
+      "typingMany_other": "{{count}} 人正在输入…"
+    },
+    "fallback": {
+      "someone": "某人"
+    },
+    "sr": {
+      "sentAttachment": "发送了一个附件"
+    },
+    "header": {
+      "conversationTitleFallback": "对话",
+      "backToConversations": "返回对话列表",
+      "membersTooltip": "成员：{{roster}}",
+      "viewMembers": "查看成员",
+      "searchInConversation": "在对话中搜索"
+    },
+    "mute": {
+      "unmute": "取消消息免打扰",
+      "mute": "开启消息免打扰",
+      "unmutedToast": "已取消消息免打扰。",
+      "mutedToast": "已开启消息免打扰。",
+      "error": "无法更新通知设置，请重试。"
+    },
+    "archive": {
+      "unarchive": "取消归档对话",
+      "archive": "归档对话",
+      "unarchivedToast": "已取消归档对话。",
+      "archivedToast": "已归档对话。",
+      "error": "无法更新对话，请重试。"
+    },
+    "search": {
+      "placeholder": "在此对话中搜索…",
+      "noMatches": "无匹配结果。"
+    },
+    "pinned": {
+      "label": "已置顶",
+      "attachmentFallback": "📎 附件",
+      "goTo": "跳转到置顶消息",
+      "unpin": "取消置顶消息",
+      "labelCount_one": "已置顶 · {{count}}",
+      "labelCount_other": "已置顶 · {{count}}"
+    },
+    "pin": {
+      "pinnedToast": "消息已置顶。",
+      "unpinnedToast": "已取消置顶消息。",
+      "error": "无法更新置顶状态，请重试。"
+    },
+    "members": {
+      "dialogLabel": "群组成员",
+      "saveName": "保存名称",
+      "cancel": "取消",
+      "renameGroup": "重命名群组",
+      "close": "关闭",
+      "changePhoto": "更换群组头像",
+      "descriptionPlaceholder": "添加群组简介…",
+      "noDescription": "暂无简介",
+      "descCancel": "取消",
+      "descSave": "保存",
+      "youSuffix": "（你）",
+      "adminBadge": "管理员",
+      "removeMember": "移除 {{name}}",
+      "addMembers": "添加成员",
+      "deleteGroup": "删除群组",
+      "leaveGroup": "退出群组",
+      "memberCount_one": "{{count}} 名成员",
+      "memberCount_other": "{{count}} 名成员"
+    },
+    "confirm": {
+      "leaveTitle": "退出群组？",
+      "leaveDescription": "你将退出“{{group}}”并停止接收其消息。群组管理员可以重新将你加入。",
+      "leaveGroupFallback": "该群组",
+      "leaveConfirm": "退出",
+      "deleteGroupTitle": "删除群组？",
+      "deleteGroupDescription": "“{{group}}”将对所有人删除，并从所有成员的聊天列表中移除。此操作无法撤销。",
+      "deleteGroupFallback": "该群组",
+      "deleteGroupConfirm": "删除群组",
+      "bulkDeletePartial": "仅会删除你自己的消息，其他人的消息将保留。此操作无法撤销。",
+      "bulkDeleteAll": "这些消息将对所有人删除。此操作无法撤销。",
+      "bulkDeleteConfirm": "删除",
+      "removeMemberTitle": "移除成员？",
+      "removeMemberDescription": "{{name}} 将被移出“{{group}}”，并不再看到其消息。",
+      "removeMemberGroupFallback": "该群组",
+      "removeMemberConfirm": "移除",
+      "bulkDeleteTitle_one": "删除 {{count}} 条消息？",
+      "bulkDeleteTitle_other": "删除 {{count}} 条消息？"
+    },
+    "group": {
+      "renamedToast": "群组已重命名。",
+      "renameError": "无法重命名群组，请重试。",
+      "descriptionUpdatedToast": "简介已更新。",
+      "descriptionError": "无法更新简介。",
+      "photoMustBeImage": "群组头像必须为图片。",
+      "photoUpdatedToast": "群组头像已更新。",
+      "photoUploadError": "无法上传图片。",
+      "memberRemovedToast": "{{name}} 已被移出群组。",
+      "memberRemoveError": "无法移除该成员，请重试。",
+      "leftToast": "你已退出群组。",
+      "leaveError": "无法退出群组，请重试。",
+      "deletedToast": "群组已删除。",
+      "deleteError": "无法删除群组，请重试。"
+    },
+    "attachment": {
+      "tooLarge": "“{{name}}”超过 10 MB。"
+    },
+    "dropFiles": "拖放文件以发送",
+    "list": {
+      "failedToLoad": "消息加载失败，请重试。",
+      "empty": "暂无消息",
+      "emptyHint": "打个招呼，开启对话吧。",
+      "beginning": "对话开头",
+      "unreadDivider": "未读消息"
+    },
+    "message": {
+      "deletedTombstone": "此消息已被删除",
+      "forwardedFrom": "转发自 {{name}}",
+      "goToMessage": "跳转到消息"
+    },
+    "reply": {
+      "deletedQuote": "消息已删除",
+      "attachmentQuote": "📎 附件"
+    },
+    "edit": {
+      "save": "保存",
+      "cancel": "取消",
+      "hint": "回车保存 · Esc 取消"
+    },
+    "actions": {
+      "react": "添加回应",
+      "reply": "回复",
+      "forward": "转发",
+      "edit": "编辑消息",
+      "delete": "删除消息"
+    },
+    "meta": {
+      "edited": "已编辑",
+      "messageInfo": "消息详情"
+    },
+    "jump": {
+      "latest": "跳转到最新",
+      "newMessages_one": "{{count}} 条新消息",
+      "newMessages_other": "{{count}} 条新消息"
+    },
+    "select": {
+      "cancel": "取消选择",
+      "deleteOnlyOwn": "你只能删除自己的消息",
+      "deleteSelected": "删除所选",
+      "delete": "删除",
+      "forward": "转发",
+      "countSelected_one": "已选择 {{count}} 条",
+      "countSelected_other": "已选择 {{count}} 条"
+    },
+    "bulkDelete": {
+      "error": "部分消息删除失败，请重试。",
+      "successToast_one": "已删除 {{count}} 条消息。",
+      "successToast_other": "已删除 {{count}} 条消息。"
+    },
+    "composer": {
+      "reply": {
+        "replyingTo": "正在回复 {{name}}",
+        "deletedPreview": "消息已删除",
+        "attachmentPreview": "📎 附件",
+        "cancel": "取消回复"
+      },
+      "removeAttachment": "移除附件",
+      "queuedClear": "清除",
+      "placeholderCaption": "添加文字说明…",
+      "placeholderGroup": "输入消息…（输入 @ 提及他人）",
+      "placeholderDirect": "输入消息…",
+      "attach": "添加照片或文件",
+      "emojiTitle": "表情",
+      "emojiAria": "插入表情",
+      "send": "发送消息",
+      "hint": "回车发送 · Shift + Enter 换行",
+      "hintMention": " · 输入 @ 提及他人",
+      "hintAttach": " · 最大可附加 10 MB",
+      "queuedFiles_one": "还有 {{count}} 个文件排队中",
+      "queuedFiles_other": "还有 {{count}} 个文件排队中"
+    },
+    "toast": {
+      "messageNotLoaded": "该消息尚未加载——向上滚动以加载更早的消息。",
+      "sendError": "消息发送失败，请重试。",
+      "reactionError": "无法更新你的回应。",
+      "deleteMessageError": "无法删除该消息。",
+      "saveEditError": "无法保存你的编辑，请重试。",
+      "linkCopied": "消息链接已复制。",
+      "linkCopyError": "无法复制链接。",
+      "openChatError": "无法打开该聊天。",
+      "messageTooLong_one": "消息过长（最多 {{count}} 个字符）。",
+      "messageTooLong_other": "消息过长（最多 {{count}} 个字符）。"
+    }
+  },
+  "pricingManagement": {
+    "title": "定价管理",
+    "subtitle": "按货币、用量区间和生效日期管理套餐层级和每席位定价。现有订阅将保留其已存储的价格；变更仅适用于新订阅和套餐升级。",
+    "tiers": {
+      "heading": "层级",
+      "add": "添加层级",
+      "empty": "暂无层级。",
+      "col": {
+        "slug": "标识符",
+        "name": "名称",
+        "description": "描述",
+        "sort": "排序",
+        "active": "启用",
+        "actions": "操作"
+      },
+      "deleteConfirm": "确定删除层级“{{name}}”（{{slug}}）吗？"
+    },
+    "pricingRows": {
+      "heading": "定价行",
+      "add": "添加定价行",
+      "empty": "暂无定价行。",
+      "col": {
+        "tier": "层级",
+        "currency": "货币",
+        "pricePerSeat": "单席位价格",
+        "seatBand": "席位区间",
+        "effectiveFrom": "生效日期",
+        "notes": "备注",
+        "actions": "操作"
+      },
+      "deleteConfirm": "确定删除此定价行吗？"
+    },
+    "billingCycles": {
+      "heading": "计费周期",
+      "add": "添加周期",
+      "empty": "暂无计费周期。",
+      "col": {
+        "cycle": "周期",
+        "label": "标签",
+        "discount": "折扣",
+        "months": "月数",
+        "active": "启用",
+        "actions": "操作"
+      },
+      "flat": "固定 {{currency}} {{amount}}",
+      "save": "节省 {{percent}}%",
+      "deleteConfirm": "确定删除计费周期“{{cycle}}”吗？"
+    },
+    "status": {
+      "active": "启用",
+      "inactive": "停用"
+    },
+    "loading": "加载中…",
+    "actions": {
+      "edit": "编辑",
+      "delete": "删除",
+      "cancel": "取消",
+      "save": "保存",
+      "saving": "保存中…"
+    },
+    "tierModal": {
+      "addTitle": "添加层级",
+      "editTitle": "编辑层级 — {{name}}",
+      "field": {
+        "slug": "标识符",
+        "slugPlaceholder": "starter",
+        "slugHelp": "内部标识符（小写、无空格）。创建后无法更改。",
+        "name": "名称",
+        "namePlaceholder": "Starter",
+        "description": "描述",
+        "sortOrder": "排序顺序",
+        "active": "启用"
+      }
+    },
+    "priceModal": {
+      "addTitle": "添加定价行",
+      "editTitle": "编辑定价行",
+      "field": {
+        "tier": "层级",
+        "currency": "货币",
+        "pricePerSeat": "单席位价格（以主单位计 — ₹/$/£/€，而非派萨/分）",
+        "minSeats": "最少席位数",
+        "maxSeats": "最多席位数（留空 = ∞）",
+        "effectiveFrom": "生效日期",
+        "effectiveFromHelp": "未来日期可用于预定价格变更。在创建订阅／升级时，匹配的最新定价行优先生效。",
+        "notes": "备注",
+        "notesPlaceholder": "如 Q3 促销、已弃用层级等。"
+      }
+    },
+    "cycleModal": {
+      "addTitle": "添加计费周期",
+      "editTitle": "编辑计费周期 — {{cycle}}",
+      "field": {
+        "cycleSlug": "周期标识符",
+        "cycleSlugPlaceholder": "semi-annual",
+        "label": "标签",
+        "labelPlaceholder": "Semi-Annual",
+        "discountPct": "折扣百分比",
+        "discountPctHelp": "在周期按钮上显示为“节省 N%”。",
+        "monthsPerCycle": "每周期月数",
+        "sortOrder": "排序顺序",
+        "active": "启用"
+      },
+      "override": {
+        "heading": "覆盖金额（可选）",
+        "help": "如已设置，当客户货币匹配时，此精确的单席位金额将替代基于折扣的计算。留空则使用折扣百分比。",
+        "amount": "单席位金额（主单位）",
+        "amountPlaceholder": "如 4800.00",
+        "currency": "货币",
+        "currencyNone": "— 无 —"
+      }
+    },
+    "toast": {
+      "tierCreated": "层级已创建",
+      "tierUpdated": "层级已更新",
+      "tierDeleted": "层级已删除",
+      "priceAdded": "定价行已添加",
+      "priceUpdated": "定价行已更新",
+      "priceDeleted": "定价行已删除",
+      "cycleCreated": "计费周期已创建",
+      "cycleUpdated": "计费周期已更新",
+      "cycleDeleted": "计费周期已删除",
+      "failed": "操作失败"
+    }
+  },
+  "csvImport": {
+    "modal": {
+      "title": "从 Excel / CSV 导入员工"
+    },
+    "downloadTemplate": "下载模板",
+    "downloadTemplateHint": "下载包含正确表头的 Excel 示例文件。",
+    "dropzone": {
+      "title": "将 Excel 或 CSV 文件拖放到此处",
+      "browse": "或点击浏览"
+    },
+    "parseError": "文件解析失败",
+    "preview": {
+      "uploadDifferent": "上传其他文件",
+      "errorsHeading": "存在错误的行（请修正文件后重新上传）",
+      "rowLabel": "第 {{row}} 行：",
+      "valid_one": "{{count}} 条有效",
+      "valid_other": "{{count}} 条有效",
+      "invalid_one": "{{count}} 条无效",
+      "invalid_other": "{{count}} 条无效",
+      "totalRows_one": "共 {{count}} 行",
+      "totalRows_other": "共 {{count}} 行"
+    },
+    "table": {
+      "firstName": "名字",
+      "lastName": "姓氏",
+      "email": "邮箱",
+      "password": "密码",
+      "role": "角色",
+      "empCode": "员工编号",
+      "designation": "职位",
+      "department": "部门",
+      "location": "工作地点",
+      "manager": "上级",
+      "type": "类型",
+      "joining": "入职日期",
+      "inviteFallback": "邀请"
+    },
+    "importing": "正在导入员工... 请稍候。",
+    "done": {
+      "title": "导入完成",
+      "summary_one": "成功导入 {{count}} 名员工。",
+      "summary_other": "成功导入 {{count}} 名员工。",
+      "departmentsCreated_one": "已新建部门（{{count}} 个）：",
+      "departmentsCreated_other": "已新建部门（{{count}} 个）：",
+      "locationsCreated_one": "已新建工作地点（{{count}} 个）：",
+      "locationsCreated_other": "已新建工作地点（{{count}} 个）：",
+      "skipped_one": "已跳过 {{count}} 行存在错误的数据：",
+      "skipped_other": "已跳过 {{count}} 行存在错误的数据："
+    },
+    "failed": "导入失败",
+    "close": "关闭",
+    "cancel": "取消",
+    "submit_one": "导入 {{count}} 名有效员工",
+    "submit_other": "导入 {{count}} 名有效员工"
+  },
+  "invoicesAdmin": {
+    "title": "发票",
+    "subtitle": "所有客户组织的全部发票（由 emp-billing 代理）。可标记为已付款、通过电子邮件发送、查看 PDF，或代表任意组织创建订阅。",
+    "subscribeOnBehalf": "代为订阅",
+    "filters": {
+      "searchLabel": "搜索",
+      "searchPlaceholder": "发票号、组织名称…",
+      "statusLabel": "状态"
+    },
+    "status": {
+      "all": "全部",
+      "draft": "草稿",
+      "sent": "已发送",
+      "viewed": "已查看",
+      "partially_paid": "部分付款",
+      "paid": "已付款",
+      "overdue": "已逾期",
+      "void": "已作废",
+      "written_off": "已核销为坏账"
+    },
+    "table": {
+      "invoice": "发票",
+      "org": "组织",
+      "status": "状态",
+      "total": "总计",
+      "due": "应付",
+      "issued": "开具日期",
+      "actions": "操作",
+      "dueDatePrefix": "到期"
+    },
+    "group": {
+      "unmappedClient": "未映射的账单客户",
+      "noClientDetails": "无客户详细信息"
+    },
+    "loading": "加载中…",
+    "empty": "没有匹配的发票。",
+    "actions": {
+      "markPaid": "标记为已付款",
+      "sendEmail": "发送电子邮件",
+      "pdf": "PDF"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "markPaid": {
+      "title": "将发票标记为已付款",
+      "methodLabel": "付款方式",
+      "method": {
+        "manual": "手动 / 现金",
+        "bank_transfer": "银行转账",
+        "cheque": "支票",
+        "upi": "UPI",
+        "card": "银行卡",
+        "other": "其他"
+      },
+      "referenceLabel": "参考号（交易 ID、支票号等）",
+      "referencePlaceholder": "例如 TXN-2026-04-XYZ",
+      "notesLabel": "备注（内部）",
+      "notesPlaceholder": "可选",
+      "cancel": "取消",
+      "recording": "记录中…",
+      "submit": "记录付款"
+    },
+    "subscribe": {
+      "title": "代表组织订阅",
+      "description": "在 EOR 中创建订阅，将触发发送给 emp-billing 的标准 webhook——客户、套餐和首张发票将自动开通。",
+      "orgLabel": "组织",
+      "orgLoadingPlaceholder": "正在加载组织…",
+      "orgNonePlaceholder": "无可用组织",
+      "orgDropdownLoading": "加载中…",
+      "orgNoMatches": "没有匹配的组织",
+      "orgSelected": "已选择（组织 ID {{orgId}}）",
+      "moduleLabel": "模块",
+      "modulePlaceholder": "— 选择模块 —",
+      "planTierLabel": "套餐等级",
+      "planTierPlaceholder": "basic / professional / enterprise / custom",
+      "totalSeatsLabel": "总席位数",
+      "billingCycleLabel": "计费周期",
+      "cycle": {
+        "monthly": "按月",
+        "quarterly": "按季度",
+        "annual": "按年"
+      },
+      "trialDaysLabel": "试用天数（0 = 立即计费）",
+      "cancel": "取消",
+      "creating": "创建中…",
+      "submit": "创建订阅",
+      "orgSearchPlaceholder_one": "输入以搜索 {{count}} 个组织…",
+      "orgSearchPlaceholder_other": "输入以搜索 {{count}} 个组织…",
+      "orgMoreResults_one": "还有 {{count}} 个——细化搜索以缩小范围",
+      "orgMoreResults_other": "还有 {{count}} 个——细化搜索以缩小范围"
+    },
+    "toast": {
+      "markPaidSuccess": "发票已标记为已付款",
+      "sendEmailSuccess": "发票邮件已加入队列",
+      "pdfError": "加载发票 PDF 失败",
+      "subscribeSuccess": "订阅已创建；发票稍后将会出现",
+      "genericError": "失败",
+      "subscribeError": "创建订阅失败。请检查组织是否有效，以及 emp-billing 是否正在运行。"
+    },
+    "invoiceCount_one": "{{count}} 张发票",
+    "invoiceCount_other": "{{count}} 张发票"
+  },
+  "subscriptionsAdmin": {
+    "title": "订阅",
+    "subtitle": "全面管理每个客户的订阅——套餐层级、状态、席位、定价、周期日期、试用结束、自动续订、免费/赠送以及手动开票意向。",
+    "filters": {
+      "searchOrg": {
+        "label": "搜索组织",
+        "placeholder": "名称或邮箱"
+      },
+      "status": {
+        "label": "状态"
+      },
+      "currency": {
+        "label": "币种"
+      },
+      "all": "全部"
+    },
+    "table": {
+      "columns": {
+        "org": "组织",
+        "module": "模块",
+        "tier": "层级",
+        "status": "状态",
+        "seats": "席位",
+        "pricePerSeat": "单席位价格",
+        "period": "周期",
+        "flags": "标记",
+        "actions": "操作"
+      }
+    },
+    "status": {
+      "trial": "试用",
+      "active": "活跃",
+      "past_due": "逾期未付",
+      "suspended": "已暂停",
+      "cancelled": "已取消",
+      "expired": "已过期"
+    },
+    "billingCycle": {
+      "monthly": "按月",
+      "quarterly": "按季度",
+      "annual": "按年"
+    },
+    "period": {
+      "trialEnds": "试用结束于 {{date}}"
+    },
+    "badges": {
+      "free": "免费",
+      "manual": "手动",
+      "noRenew": "不续订"
+    },
+    "loading": "加载中...",
+    "empty": "没有匹配的订阅。",
+    "actions": {
+      "edit": "编辑（全部字段）",
+      "suspend": "暂停",
+      "activate": "激活",
+      "cancel": "取消",
+      "removeFreeFlag": "移除免费标记",
+      "markFree": "标记为免费/赠送",
+      "recordManualInvoice": "记录手动开票"
+    },
+    "confirm": {
+      "suspend": "确定暂停 {{org}} 的 {{module}} 吗？",
+      "cancel": "确定取消 {{org}} 的 {{module}} 吗？",
+      "removeFree": "确定移除免费/赠送标记吗？"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页",
+      "pageOf": "{{page}} / {{totalPages}}"
+    },
+    "toast": {
+      "updated": "订阅已更新",
+      "suspended": "已暂停",
+      "activated": "已激活",
+      "cancelled": "已取消",
+      "markedFree": "已标记为免费",
+      "unmarkedFree": "已取消免费标记",
+      "manualInvoiceRecorded": "手动开票已记录",
+      "failed": "操作失败"
+    },
+    "editModal": {
+      "title": "编辑订阅 — {{org}} · {{module}}",
+      "fields": {
+        "planTier": "套餐层级",
+        "status": "状态",
+        "totalSeats": "席位总数",
+        "billingCycle": "计费周期",
+        "pricePerSeat": "每席位价格（主单位）",
+        "currency": "币种",
+        "periodStart": "周期开始",
+        "periodEnd": "周期结束",
+        "trialEnds": "试用结束（留空 = 无试用）",
+        "autoRenew": "自动续订",
+        "freeComp": "免费/赠送",
+        "freeReason": "免费原因",
+        "internalNotes": "内部备注"
+      },
+      "autoRenewYes": "是",
+      "compedLabel": "已赠送（价格强制为 0）",
+      "freeReasonPlaceholder": "内测用户、内部使用、高管协议等",
+      "internalNotesPlaceholder": "交易背景、特殊条款、审计记录...",
+      "cancel": "取消",
+      "save": "保存所有更改",
+      "saving": "保存中..."
+    },
+    "freeModal": {
+      "title": "标记免费 — {{org}} · {{module}}",
+      "description": "此操作会将 price_per_seat 设为 0，并将该订阅标记为已赠送。审计日志需要填写原因。",
+      "reasonPlaceholder": "例如：内测用户、内部团队、高管赞助",
+      "cancel": "取消",
+      "confirm": "确认 — 设为免费",
+      "saving": "保存中..."
+    },
+    "invoiceModal": {
+      "title": "手动开票 — {{org}} · {{module}}",
+      "description": "将开票意向记录到该订阅的内部备注中以供审计。实际的发票文档将在下次同步时在 EMP Billing 中创建。",
+      "amountLabel": "金额（以 {{currency}} 计）",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "一次性设置费、定制功能开发等",
+      "dueDateLabel": "到期日（可选）",
+      "cancel": "取消",
+      "confirm": "记录开票意向",
+      "saving": "保存中..."
+    },
+    "count": {
+      "subscriptions_one": "{{count}} 个订阅",
+      "subscriptions_other": "{{count}} 个订阅"
+    }
+  },
+  "orgDetail": {
+    "loading": "加载中...",
+    "error": {
+      "loadFailed": "加载组织详情失败。",
+      "backToOrganizations": "返回组织列表"
+    },
+    "backToAll": "返回全部组织",
+    "createdOn": "创建于",
+    "stats": {
+      "users": "用户",
+      "activeSubscriptions": "有效订阅",
+      "monthlyRevenue": "月收入",
+      "totalSpend": "总支出"
+    },
+    "users": {
+      "columns": {
+        "name": "姓名",
+        "email": "邮箱",
+        "role": "角色",
+        "status": "状态",
+        "joined": "加入时间",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "已激活",
+        "inactive": "未激活"
+      },
+      "actions": {
+        "deactivate": "停用用户",
+        "activate": "激活用户",
+        "resetPassword": "重置密码",
+        "changeRole": "更改角色"
+      },
+      "empty": "该组织暂无用户",
+      "heading_one": "用户 ({{count}})",
+      "heading_other": "用户 ({{count}})"
+    },
+    "subscriptions": {
+      "columns": {
+        "module": "模块",
+        "plan": "套餐",
+        "status": "状态",
+        "seats": "席位",
+        "pricePerSeat": "单席位价格",
+        "monthly": "月费",
+        "billing": "计费周期",
+        "periodEnd": "周期结束"
+      },
+      "empty": "暂无订阅",
+      "heading_one": "订阅 ({{count}})",
+      "heading_other": "订阅 ({{count}})"
+    },
+    "audit": {
+      "columns": {
+        "action": "操作",
+        "entity": "实体",
+        "ip": "IP",
+        "time": "时间"
+      },
+      "heading_one": "审计日志（最近 {{count}} 条）",
+      "heading_other": "审计日志（最近 {{count}} 条）"
+    },
+    "resetPassword": {
+      "title": "重置密码",
+      "description": "为 <strong>{{name}}</strong>（{{email}}）重置密码。",
+      "newPasswordLabel": "新密码",
+      "newPasswordPlaceholder": "至少 8 个字符",
+      "submitting": "重置中...",
+      "submit": "重置密码"
+    },
+    "changeRole": {
+      "title": "更改角色",
+      "description": "为 <strong>{{name}}</strong> 更改角色。",
+      "currentRole": "当前角色：{{role}}",
+      "newRoleLabel": "新角色",
+      "submitting": "更新中...",
+      "submit": "更新角色"
+    },
+    "actions": {
+      "cancel": "取消"
+    },
+    "tabs": {
+      "users_one": "用户 ({{count}})",
+      "users_other": "用户 ({{count}})",
+      "subscriptions_one": "订阅 ({{count}})",
+      "subscriptions_other": "订阅 ({{count}})",
+      "auditLog_one": "审计日志（最近 {{count}} 条）",
+      "auditLog_other": "审计日志（最近 {{count}} 条）"
+    }
+  },
+  "orgList": {
+    "title": "所有组织",
+    "createButton": "创建组织",
+    "modal": {
+      "title": "创建新组织",
+      "fields": {
+        "orgName": "组织名称",
+        "firstName": "管理员名字",
+        "lastName": "管理员姓氏",
+        "email": "管理员邮箱",
+        "password": "管理员密码",
+        "country": "国家/地区",
+        "timezone": "时区"
+      },
+      "passwordHint": "必须包含大写字母、小写字母、数字和特殊字符。",
+      "placeholders": {
+        "password": "至少 8 个字符，含大写字母、小写字母、数字、特殊字符"
+      },
+      "cancel": "取消",
+      "submit": "创建组织",
+      "submitting": "正在创建...",
+      "error": "创建组织失败。请检查所有字段。"
+    },
+    "search": {
+      "placeholder": "按名称或邮箱搜索..."
+    },
+    "table": {
+      "headers": {
+        "organization": "组织",
+        "adminEmail": "管理员邮箱",
+        "employees": "员工数",
+        "comment": "评论",
+        "activeModules": "已启用模块",
+        "monthlySpend": "月度支出",
+        "status": "状态",
+        "joined": "加入时间"
+      }
+    },
+    "comment": {
+      "addHint": "双击添加评论",
+      "editHint": "双击编辑此评论"
+    },
+    "status": {
+      "active": "活跃",
+      "inactive": "未激活"
+    },
+    "loading": "加载中...",
+    "empty": "未找到组织",
+    "pagination": {
+      "summary": "第 {{page}} 页，共 {{totalPages}} 页（共 {{total}} 条）"
+    },
+    "subtitle_one": "平台上已注册 {{count}} 个组织。",
+    "subtitle_other": "平台上已注册 {{count}} 个组织。"
+  },
+  "superAdminDashboard": {
+    "title": "平台仪表盘",
+    "subtitle": "整个 EOR 平台的实时概览。",
+    "loading": "正在加载平台数据…",
+    "error": {
+      "title": "加载仪表盘数据失败",
+      "retryHint": "请尝试刷新页面"
+    },
+    "stats": {
+      "totalOrganizations": "组织总数",
+      "totalUsers": "用户总数",
+      "activeSubscriptions": "有效订阅数",
+      "mrr": "MRR",
+      "arr": "ARR",
+      "systemHealth": "系统健康状况",
+      "mrrSubtitle": "每月经常性收入",
+      "arrSubtitle": "年度经常性收入",
+      "newThisMonth_one": "本月新增 {{count}} 个",
+      "newThisMonth_other": "本月新增 {{count}} 个"
+    },
+    "systemHealthStatus": {
+      "allHealthy": "所有系统运行正常",
+      "degraded": "部分系统性能下降",
+      "offline": "系统离线"
+    },
+    "quickLinks": {
+      "organizations": {
+        "label": "组织",
+        "description": "查看和管理所有组织"
+      },
+      "moduleAnalytics": {
+        "label": "模块分析",
+        "description": "各模块的订阅者、席位和收入"
+      },
+      "revenueAnalytics": {
+        "label": "收入分析",
+        "description": "MRR、ARR、趋势和主要客户"
+      },
+      "subscriptionMetrics": {
+        "label": "订阅指标",
+        "description": "套餐、使用率和计费周期"
+      }
+    },
+    "charts": {
+      "revenueTrend": {
+        "title": "收入趋势"
+      },
+      "revenueByModule": {
+        "title": "各模块收入"
+      },
+      "moduleAdoption": {
+        "title": "模块采用情况"
+      },
+      "growthTrends": {
+        "title": "增长趋势"
+      },
+      "viewDetails": "查看详情",
+      "legend": {
+        "organizations": "组织",
+        "totalSeats": "席位总数",
+        "newOrgs": "新增组织",
+        "newUsers": "新增用户"
+      }
+    },
+    "empty": {
+      "revenue": "暂无收入数据",
+      "adoption": "暂无采用数据",
+      "growth": "暂无增长数据",
+      "activity": "暂无近期活动"
+    },
+    "systemHealth": {
+      "title": "系统健康状况",
+      "badge": {
+        "allOperational": "全部正常运行",
+        "degraded": "性能下降",
+        "checking": "正在检查…"
+      },
+      "checkingModules": "正在检查健康状况…"
+    },
+    "healthBadge": {
+      "healthy": "健康",
+      "down": "宕机"
+    },
+    "activity": {
+      "title": "近期活动",
+      "systemActor": "系统"
+    }
+  },
+  "healthDashboard": {
+    "title": "服务健康状态",
+    "subtitle": "EOR 生态系统所有服务的实时健康状态",
+    "refreshing": "正在刷新…",
+    "actions": {
+      "checking": "正在检查…",
+      "checkNow": "立即检查"
+    },
+    "loading": "正在运行健康检查…",
+    "overall": {
+      "operational": {
+        "title": "所有系统运行正常",
+        "subtitle": "所有服务均运行正常。"
+      },
+      "degraded": {
+        "title": "部分系统降级",
+        "subtitle": "一个或多个服务出现异常。"
+      },
+      "majorOutage": {
+        "title": "重大故障",
+        "subtitle": "多个服务当前不可用。"
+      },
+      "unknown": {
+        "title": "正在检查状态…",
+        "subtitle": "正在执行初始健康检查。"
+      },
+      "lastChecked": "上次检查"
+    },
+    "status": {
+      "healthy": "健康",
+      "degraded": "降级",
+      "down": "宕机"
+    },
+    "module": {
+      "port": "端口 {{port}}",
+      "responseTime": "响应时间",
+      "version": "版本",
+      "uptime": "正常运行时间",
+      "lastCheck": "上次检查"
+    },
+    "infra": {
+      "fallbackType": "基础设施",
+      "connected": "已连接",
+      "disconnected": "已断开",
+      "responseTime": "响应时间",
+      "version": "版本",
+      "database": "数据库",
+      "threads": "线程数",
+      "uptime": "正常运行时间"
+    },
+    "endpoints": {
+      "title": "API 端点状态",
+      "description": "各模块的健康检查端点",
+      "columns": {
+        "module": "模块",
+        "endpoint": "端点",
+        "method": "方法",
+        "status": "状态",
+        "response": "响应",
+        "httpCode": "HTTP 代码",
+        "lastChecked": "上次检查"
+      },
+      "status": {
+        "ok": "正常",
+        "down": "宕机"
+      }
+    },
+    "stats": {
+      "totalServices": "服务总数",
+      "healthy": "健康",
+      "degraded": "降级",
+      "down": "宕机"
+    },
+    "sections": {
+      "moduleServices": "模块服务",
+      "infrastructure": "基础设施"
+    },
+    "footer": {
+      "note": "每 30 秒自动刷新。后台检查每 60 秒运行一次。"
+    }
+  },
+  "aiConfig": {
+    "title": "AI 配置",
+    "subtitle": "为 HR 聊天机器人助手配置 AI 提供商。此处设置的密钥将覆盖环境变量。",
+    "status": {
+      "active": "已启用",
+      "configured": "已配置",
+      "notConfigured": "未配置"
+    },
+    "field": {
+      "apiKey": "API 密钥",
+      "baseUrl": "基础 URL",
+      "model": "模型",
+      "maxTokens": "最大 Token 数：{{count}}"
+    },
+    "placeholder": {
+      "apiKeyCurrent": "当前：{{value}}",
+      "apiKeyEnter": "请输入 API 密钥…",
+      "baseUrl": "https://api.example.com",
+      "customModel": "请输入模型名称（例如 my-model）"
+    },
+    "testResult": {
+      "latency": "延迟：{{ms}}ms",
+      "requestFailed": "测试请求失败"
+    },
+    "button": {
+      "testConnection": "测试连接",
+      "active": "已启用",
+      "saveActivate": "保存并启用",
+      "deactivate": "停用",
+      "saveMaxTokens": "保存最大 Token 数"
+    },
+    "banner": {
+      "aiPoweredMode": "AI 驱动模式",
+      "aiPoweredModeProvider": "AI 驱动模式（{{provider}}）",
+      "basicMode": "基础模式（未启用 AI 提供商）",
+      "modelStatus": "模型：{{model}} | 状态：{{status}}",
+      "basicModeHint": "聊天机器人正以基于规则的模式运行。请在下方启用某个提供商以启用 AI 驱动的响应。"
+    },
+    "section": {
+      "providers": "提供商",
+      "generalSettings": "常规设置"
+    },
+    "info": {
+      "title": "工作原理",
+      "encryption": "API 密钥在静态存储时使用 AES-256-GCM 加密，且绝不会以明文形式返回",
+      "overrideEnv": "此处存储的设置将覆盖环境变量（.env）",
+      "singleActive": "同一时间只能启用一个提供商。切换提供商会立即生效。",
+      "testFirst": "启用前请使用“测试连接”来验证您的 API 密钥和模型"
+    }
+  },
+  "moduleAnalytics": {
+    "title": "模块分析",
+    "subtitle": "平台各模块的详细指标。",
+    "loading": "加载中…",
+    "stats": {
+      "activeModules": "活跃模块",
+      "totalSubscribers": "订阅者总数",
+      "totalSeats": "席位总数",
+      "totalModuleRevenue": "模块总收入"
+    },
+    "charts": {
+      "revenueByModule": "按模块划分的收入",
+      "revenueSeries": "收入",
+      "noRevenueData": "暂无收入数据",
+      "subscriberDistribution": "订阅者分布",
+      "noSubscriberData": "暂无订阅者数据"
+    },
+    "details": {
+      "heading": "模块详情",
+      "noSubscribers": "无订阅者",
+      "disableModule": "禁用模块",
+      "subscribers": "订阅者",
+      "seats": "席位",
+      "revenue": "收入",
+      "seatUtilization": "席位使用率",
+      "planDistribution": "套餐分布",
+      "orgCount_one": "{{count}} 个组织",
+      "orgCount_other": "{{count}} 个组织"
+    },
+    "table": {
+      "heading": "详细指标",
+      "module": "模块",
+      "slug": "Slug",
+      "subscribers": "订阅者",
+      "totalSeats": "席位总数",
+      "usedSeats": "已用席位",
+      "utilization": "使用率",
+      "revenue": "收入",
+      "status": "状态"
+    },
+    "status": {
+      "active": "活跃"
+    }
+  },
+  "subscriptionMetrics": {
+    "title": "订阅指标",
+    "subtitle": "套餐分布、席位使用率和计费指标。",
+    "loading": "加载中...",
+    "stats": {
+      "totalSeats": "席位总数",
+      "usedSeats": "已用席位",
+      "seatUtilization": "席位使用率",
+      "activeUsers": "活跃用户",
+      "inactive_one": "{{count}} 名不活跃",
+      "inactive_other": "{{count}} 名不活跃"
+    },
+    "charts": {
+      "planTierDistribution": "套餐等级分布",
+      "subscriptionStatus": "订阅状态",
+      "billingCycle": "计费周期",
+      "seatUtilizationByTier": "按套餐等级划分的席位使用率",
+      "subscriptionChurn": "订阅流失"
+    },
+    "churn": {
+      "cancelledSeries": "已取消"
+    },
+    "seats": "{{used}} / {{total}} 席位",
+    "empty": {
+      "noData": "暂无数据",
+      "noTierData": "暂无等级数据"
+    }
+  },
+  "systemNotifications": {
+    "title": "系统通知",
+    "subtitle": "向所有组织或指定组织发送平台级公告。",
+    "newNotification": "新建通知",
+    "form": {
+      "heading": "发送通知",
+      "titleLabel": "标题",
+      "titlePlaceholder": "通知标题",
+      "typeLabel": "类型",
+      "messageLabel": "内容",
+      "messagePlaceholder": "通知内容……",
+      "targetLabel": "目标",
+      "allOrgs": "所有组织",
+      "specificOrg": "指定组织",
+      "organizationLabel": "组织",
+      "selectOrgPlaceholder": "选择组织……",
+      "send": "发送通知",
+      "sending": "发送中……"
+    },
+    "type": {
+      "info": "信息",
+      "warning": "警告",
+      "maintenance": "维护",
+      "release": "功能发布"
+    },
+    "list": {
+      "empty": "尚未发送任何系统通知。",
+      "heading_one": "全部通知（{{count}}）",
+      "heading_other": "全部通知（{{count}}）"
+    },
+    "item": {
+      "deactivated": "已停用",
+      "targetAll": "所有组织",
+      "targetPrefix": "目标：",
+      "byPrefix": "发送者：",
+      "systemAuthor": "系统",
+      "orgFallback": "组织 #{{id}}",
+      "deactivate": "停用"
+    }
+  },
+  "revenueAnalytics": {
+    "title": "收入分析",
+    "subtitle": "财务概览与收入明细。",
+    "loading": "加载中...",
+    "stats": {
+      "mrr": "月度经常性收入（MRR）",
+      "arr": "年度经常性收入（ARR）",
+      "seatUtilization": "席位利用率",
+      "seats": "{{used}} / {{total}} 个席位",
+      "payingCustomers": "付费客户"
+    },
+    "charts": {
+      "revenueTrend": {
+        "title": "收入趋势（最近 12 个月）",
+        "empty": "暂无趋势数据"
+      },
+      "revenueByModule": {
+        "title": "按模块划分的收入",
+        "series": "收入"
+      },
+      "empty": "暂无数据",
+      "revenueByTier": {
+        "title": "按套餐层级划分的收入",
+        "subsLabel_one": "{{count}} 个订阅 - {{revenue}}",
+        "subsLabel_other": "{{count}} 个订阅 - {{revenue}}"
+      },
+      "billingCycle": {
+        "title": "计费周期分布",
+        "percentOfSubscriptions": "占订阅总数的 {{percent}}%",
+        "subs_one": "{{count}} 个订阅",
+        "subs_other": "{{count}} 个订阅"
+      }
+    },
+    "topCustomers": {
+      "title": "收入排名前 10 的客户",
+      "columns": {
+        "rank": "#",
+        "organization": "组织",
+        "email": "电子邮箱",
+        "subscriptions": "订阅",
+        "monthlySpend": "月度支出"
+      },
+      "empty": "暂无客户数据"
+    }
+  },
+  "logDashboard": {
+    "title": "日志仪表板",
+    "subtitle": "跨所有 EOR 模块的实时监控",
+    "actions": {
+      "refresh": "刷新"
+    },
+    "tabs": {
+      "overview": "概览",
+      "errors": "错误",
+      "slow": "慢查询",
+      "auth": "认证事件",
+      "health": "模块健康状况"
+    },
+    "stats": {
+      "auditEvents": "审计事件（24 小时）",
+      "fileErrors": "文件错误（24 小时）",
+      "slowQueries": "慢查询",
+      "healthyModules": "健康模块"
+    },
+    "sections": {
+      "errorsByAction": "按操作分类的错误（24 小时）",
+      "errorsPerModule": "各模块错误（来自日志文件）",
+      "moduleHealth": "模块健康状况"
+    },
+    "errors": {
+      "title": "近期错误",
+      "subtitle": "来自 PM2 错误日志和所有模块的前端客户端错误",
+      "badge": {
+        "frontend": "前端"
+      },
+      "detail": {
+        "page": "页面：",
+        "component": "组件："
+      },
+      "empty": "未发现错误。"
+    },
+    "slow": {
+      "title": "慢查询",
+      "subtitle": "耗时超过 1 秒的数据库查询",
+      "columns": {
+        "module": "模块",
+        "duration": "耗时",
+        "sql": "SQL",
+        "time": "时间"
+      },
+      "empty": "未检测到慢查询。"
+    },
+    "auth": {
+      "title": "认证事件",
+      "subtitle": "登录、登出、密码更改、令牌事件（最近 24 小时）",
+      "user": "用户 #{{id}}",
+      "ip": "IP：{{ip}}",
+      "notAvailable": "无",
+      "empty": "最近 24 小时内无认证事件。"
+    },
+    "healthTab": {
+      "status": "状态：{{status}}",
+      "restarts": "重启次数：{{count}}",
+      "recentErrors": "近期错误：{{count}}",
+      "lastActivity": "最后活动：{{time}}",
+      "loading": "正在加载模块健康状况……",
+      "empty": "无可用的模块健康状况数据。"
+    },
+    "status": {
+      "healthy": "健康",
+      "warning": "警告",
+      "critical": "严重",
+      "unknown": "未知"
+    },
+    "pagination": {
+      "status": "第 {{page}} 页，共 {{totalPages}} 页（共 {{total}} 条）",
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "health": {
+      "restarts_one": "{{count}} 次重启",
+      "restarts_other": "{{count}} 次重启",
+      "recentErrors_one": "{{count}} 个错误",
+      "recentErrors_other": "{{count}} 个错误"
+    }
+  },
+  "dataSanity": {
+    "title": "数据完整性检查器",
+    "subtitle": "跨模块数据一致性验证",
+    "overall": {
+      "healthy": {
+        "title": "所有系统运行正常",
+        "subtitle": "所有跨模块数据一致性检查均已通过。"
+      },
+      "warnings": {
+        "title": "检测到警告",
+        "subtitle": "发现部分数据不一致，可能需要关注。"
+      },
+      "critical": {
+        "title": "发现严重问题",
+        "subtitle": "检测到数据完整性问题，需要立即处理。"
+      }
+    },
+    "status": {
+      "pass": "通过",
+      "warn": "警告",
+      "fail": "失败"
+    },
+    "check": {
+      "noIssues": "未检测到任何问题。",
+      "issuesFound_one": "发现 {{count}} 个问题",
+      "issuesFound_other": "发现 {{count}} 个问题",
+      "showingCount_one": "（显示 {{count}} 个）",
+      "showingCount_other": "（显示 {{count}} 个）"
+    },
+    "confirmFix": {
+      "title": "确认自动修复",
+      "intro": "此操作将自动应用以下修复：",
+      "fix": {
+        "syncOrgUserCounts": "同步组织用户数量",
+        "syncSeatCounts": "同步订阅席位数量",
+        "fixNegativeLeave": "修复负数休假余额（归零处理）",
+        "removeOrphaned": "移除孤立记录（休假、考勤、服务台、公告）"
+      },
+      "warning": "这些更改无法撤销。请确保您已备份数据库。",
+      "cancel": "取消",
+      "apply": "应用修复",
+      "applying": "修复中……"
+    },
+    "fixResults": {
+      "none": "无需任何修复。一切正常。",
+      "title_one": "自动修复结果（共 {{count}} 项更改）",
+      "title_other": "自动修复结果（共 {{count}} 项更改）"
+    },
+    "button": {
+      "autoFix": "自动修复",
+      "runCheck": "运行检查",
+      "running": "运行中……"
+    },
+    "loading": {
+      "title": "正在运行完整性检查……",
+      "subtitle": "正在检查所有模块数据库的数据一致性。这可能需要一些时间。"
+    },
+    "empty": {
+      "title": "暂无报告",
+      "subtitle": "点击“运行检查”以验证所有模块数据库的数据一致性。",
+      "runButton": "运行完整性检查"
+    },
+    "summary": {
+      "totalChecks": "检查总数",
+      "passed": "已通过",
+      "warnings": "警告",
+      "failures": "失败"
+    },
+    "lastRun": "上次运行：",
+    "checkResults": {
+      "heading": "检查结果"
+    }
+  },
+  "eventDashboard": {
+    "header": {
+      "title": "活动看板",
+      "subtitle": "管理公司活动并跟踪出席情况。",
+      "createEvent": "创建活动"
+    },
+    "stats": {
+      "upcomingEvents": "即将举行的活动",
+      "thisMonth": "本月",
+      "totalRsvps": "报名总数",
+      "eventTypes": "活动类型"
+    },
+    "typeBreakdown": {
+      "title": "活动类型明细"
+    },
+    "eventType": {
+      "meeting": "会议",
+      "training": "培训",
+      "celebration": "庆祝活动",
+      "team_building": "团队建设",
+      "town_hall": "全员大会",
+      "holiday": "假日",
+      "workshop": "研讨会",
+      "social": "社交活动",
+      "other": "其他"
+    },
+    "form": {
+      "title": "创建活动",
+      "fields": {
+        "title": "标题",
+        "description": "描述",
+        "eventType": "活动类型",
+        "allDay": "全天活动",
+        "mandatory": "必须参加",
+        "startDate": "开始日期",
+        "endDate": "结束日期",
+        "location": "地点",
+        "virtualLink": "线上链接",
+        "targetAudience": "目标受众",
+        "targetIds": "目标 ID（JSON）",
+        "maxAttendees": "最多参加人数"
+      },
+      "placeholders": {
+        "title": "活动标题",
+        "description": "活动描述…",
+        "location": "办公室、101 室等",
+        "virtualLink": "https://meet.google.com/...",
+        "maxAttendees": "不限"
+      },
+      "targetType": {
+        "all": "全体员工",
+        "department": "部门",
+        "role": "角色"
+      },
+      "errors": {
+        "endBeforeStart": "结束日期不能早于开始日期。"
+      },
+      "cancel": "取消",
+      "submit": "创建活动",
+      "editTitle": "编辑活动",
+      "updateSubmit": "更新活动"
+    },
+    "upcoming": {
+      "title": "即将举行的活动",
+      "viewAll": "查看全部",
+      "loading": "加载中…",
+      "empty": "暂无即将举行的活动。在上方创建一个吧！",
+      "view": "查看",
+      "cancel": "取消",
+      "deleteTitle": "删除活动",
+      "attending_one": "{{count}} 人参加",
+      "attending_other": "{{count}} 人参加",
+      "edit": "编辑",
+      "editTitle": "编辑活动"
+    },
+    "deleteModal": {
+      "title": "删除活动？",
+      "body": "删除 {{name}}？此操作将永久删除该活动及其回复，且无法撤销。",
+      "cancel": "取消",
+      "confirm": "删除",
+      "deleting": "删除中…",
+      "error": "删除活动失败"
+    },
+    "toast": {
+      "created": "活动已创建",
+      "updated": "活动已更新",
+      "createFailed": "创建活动失败",
+      "updateFailed": "更新活动失败"
+    }
+  },
+  "surveyBuilder": {
+    "questionType": {
+      "rating_1_5": "评分 (1-5)",
+      "rating_1_10": "评分 (1-10)",
+      "enps_0_10": "eNPS (0-10)",
+      "yes_no": "是 / 否",
+      "multiple_choice": "多项选择",
+      "text": "自由文本",
+      "scale": "量表"
+    },
+    "surveyType": {
+      "pulse": "脉冲调查",
+      "enps": "eNPS 调查",
+      "engagement": "敬业度调查",
+      "custom": "自定义调查",
+      "onboarding": "入职调查",
+      "exit_survey": "离职调查"
+    },
+    "header": {
+      "editTitle": "编辑调查",
+      "createTitle": "创建调查",
+      "subtitle": "设计您的调查并添加问题。"
+    },
+    "details": {
+      "heading": "调查详情",
+      "titleLabel": "标题 *",
+      "titlePlaceholder": "例如：2026 年第一季度员工脉搏调查",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "简要描述调查目的……",
+      "typeLabel": "类型",
+      "targetAudienceLabel": "目标受众",
+      "recurrenceLabel": "重复频率",
+      "startDateLabel": "开始日期和时间",
+      "endDateLabel": "结束日期和时间",
+      "dateTimeHelper": "请选择日期和当天的时间。",
+      "anonymousLabel": "匿名"
+    },
+    "target": {
+      "all": "所有员工",
+      "department": "按部门",
+      "role": "按角色",
+      "custom": "自定义"
+    },
+    "recurrence": {
+      "none": "一次性",
+      "weekly": "每周",
+      "monthly": "每月",
+      "quarterly": "每季度"
+    },
+    "questions": {
+      "heading": "问题",
+      "addButton": "添加问题",
+      "moveUpTitle": "上移",
+      "removeTitle": "删除问题",
+      "textPlaceholder": "输入问题内容……",
+      "typeLabel": "类型",
+      "requiredLabel": "必填",
+      "optionsLabel": "选项（每行一个）",
+      "optionsPlaceholder": "选项 A\n选项 B\n选项 C",
+      "previewLabel": "预览"
+    },
+    "actions": {
+      "cancel": "取消",
+      "saveDraft": "保存为草稿",
+      "savePublish": "保存并发布"
+    },
+    "toast": {
+      "endBeforeStart": "结束日期不能早于开始日期。"
+    },
+    "preview": {
+      "emptyHint": "输入问题以查看预览",
+      "enpsNotLikely": "不太可能",
+      "enpsVeryLikely": "非常可能",
+      "yes": "是",
+      "no": "否",
+      "optionA": "选项 A",
+      "optionB": "选项 B",
+      "optionC": "选项 C",
+      "textPlaceholder": "员工将在此处输入答案……"
+    }
+  },
+  "eventDetail": {
+    "type": {
+      "meeting": "会议",
+      "training": "培训",
+      "celebration": "庆祝活动",
+      "team_building": "团队建设",
+      "town_hall": "全员大会",
+      "holiday": "假期",
+      "workshop": "研讨会",
+      "social": "社交活动",
+      "other": "其他"
+    },
+    "status": {
+      "upcoming": "即将开始",
+      "ongoing": "进行中",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "state": {
+      "loading": "正在加载活动...",
+      "notFound": "未找到活动。"
+    },
+    "header": {
+      "backToEvents": "返回活动列表",
+      "delete": "删除"
+    },
+    "badge": {
+      "mandatory": "必须参加"
+    },
+    "details": {
+      "dateLabel": "日期",
+      "allDaySuffix": "（全天）",
+      "dateRange": "至 {{date}}",
+      "locationLabel": "地点",
+      "virtualLabel": "线上会议",
+      "joinOnline": "在线加入",
+      "attendeesLabel": "参加人员",
+      "attendingCount_one": "{{count}} 人参加",
+      "attendingCount_other": "{{count}} 人参加",
+      "maybeSuffix_one": "，{{count}} 人待定",
+      "maybeSuffix_other": "，{{count}} 人待定",
+      "maxSuffix_one": " / 上限 {{count}} 人",
+      "maxSuffix_other": " / 上限 {{count}} 人"
+    },
+    "rsvp": {
+      "heading": "您的回复",
+      "currently": "（当前：{{status}}）",
+      "attending": "参加",
+      "maybe": "待定",
+      "decline": "婉拒"
+    },
+    "delete": {
+      "title": "删除活动？",
+      "confirm": "删除 {{name}}？此操作将永久删除该活动及其回复，且无法撤销。",
+      "error": "删除活动失败",
+      "cancel": "取消",
+      "confirmButton": "删除",
+      "deleting": "正在删除..."
+    },
+    "attendees": {
+      "attendingHeading_one": "参加（{{count}}）",
+      "attendingHeading_other": "参加（{{count}}）",
+      "maybeHeading_one": "待定（{{count}}）",
+      "maybeHeading_other": "待定（{{count}}）"
+    }
+  },
+  "surveyResults": {
+    "loading": "正在加载结果...",
+    "notFound": "未找到调查。",
+    "actions": {
+      "exportCsv": "导出 CSV"
+    },
+    "status": {
+      "active": "进行中",
+      "closed": "已关闭",
+      "draft": "草稿"
+    },
+    "summary": {
+      "totalResponses": "回复总数",
+      "questions": "问题数",
+      "enpsScore": "eNPS 得分"
+    },
+    "a11y": {
+      "jumpToPerQuestion": "跳转到各题结果",
+      "jumpToQuestionsBreakdown": "跳转到问题明细",
+      "jumpToEnpsBreakdown": "跳转到 eNPS 明细"
+    },
+    "enps": {
+      "breakdownTitle": "eNPS 明细",
+      "promoters": "推荐者 (9-10)",
+      "passives": "中立者 (7-8)",
+      "detractors": "贬损者 (0-6)",
+      "inlineLabel": "eNPS："
+    },
+    "question": {
+      "average": "平均值：",
+      "minMax": "（最小值：{{min}}，最大值：{{max}}）",
+      "yes": "是",
+      "no": "否",
+      "answersMeta_one": "{{type}} | {{count}} 个回答",
+      "answersMeta_other": "{{type}} | {{count}} 个回答",
+      "responsesCount_one": "{{count}} 条回复",
+      "responsesCount_other": "{{count}} 条回复"
+    },
+    "questionType": {
+      "rating_1_5": "评分 1-5",
+      "rating_1_10": "评分 1-10",
+      "enps_0_10": "eNPS 0-10",
+      "scale": "量表",
+      "yes_no": "是 / 否",
+      "multiple_choice": "多项选择",
+      "text": "文本"
+    }
+  },
+  "reportDetail": {
+    "status": {
+      "submitted": "已提交",
+      "under_investigation": "调查中",
+      "escalated": "已升级",
+      "resolved": "已解决",
+      "dismissed": "已驳回",
+      "closed": "已关闭"
+    },
+    "severity": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "严重"
+    },
+    "reportInfo": {
+      "categoryLabel": "类别：",
+      "anonymousLabel": "匿名：",
+      "anonymousYes": "是",
+      "anonymousNo": "否",
+      "reporterLabel": "举报人：",
+      "evidenceFilesLabel": "证据文件："
+    },
+    "timeline": {
+      "heading": "调查时间线",
+      "visibleToReporterBadge": "举报人可见",
+      "systemAuthor": "系统",
+      "empty": "暂无更新"
+    },
+    "addUpdate": {
+      "heading": "添加更新",
+      "typeNote": "内部备注",
+      "typeResponseToReporter": "回复举报人",
+      "typeStatusChange": "状态变更备注",
+      "visibleToReporterCheckbox": "举报人可见",
+      "contentPlaceholder": "撰写更新或备注……",
+      "submitSending": "发送中……",
+      "submit": "添加更新"
+    },
+    "info": {
+      "submittedLabel": "提交时间：",
+      "investigatorLabel": "调查员：",
+      "escalatedToLabel": "升级至：",
+      "resolvedLabel": "解决时间：",
+      "resolutionLabel": "处理结果："
+    },
+    "assign": {
+      "heading": "指派调查员",
+      "loadUsersError": "加载用户失败，请刷新页面。",
+      "optionLoading": "正在加载用户……",
+      "optionError": "加载用户出错",
+      "optionSelect": "请选择调查员……",
+      "userOption": "{{firstName}} {{lastName}}（{{email}}）",
+      "error": "指派调查员失败，请重试。",
+      "success": "调查员指派成功。"
+    },
+    "changeStatus": {
+      "heading": "变更状态",
+      "optionSelect": "请选择状态……",
+      "resolutionPlaceholder": "处理结果说明……",
+      "submitUpdating": "更新中……",
+      "submit": "更新状态"
+    },
+    "escalate": {
+      "heading": "对外升级",
+      "placeholder": "外部机构或主管部门",
+      "submitEscalating": "升级中……",
+      "submit": "升级举报"
+    }
+  },
+  "submitReport": {
+    "success": {
+      "title": "举报已提交",
+      "description": "您的举报已成功提交。请妥善保存您的案件编号，以便跟踪举报处理状态。",
+      "caseNumberLabel": "您的案件编号",
+      "importantLabel": "重要提示：",
+      "saveCaseNumber": "请安全保存此案件编号。这是跟踪您举报的唯一方式。",
+      "identityAnonymous": "您的身份完全匿名，无法被披露。",
+      "identityAttached": "您的身份已附加在此举报中。",
+      "trackReportHint": "请使用“跟踪举报”页面查看最新进展。",
+      "submitAnother": "提交另一份举报"
+    },
+    "header": {
+      "title": "提交举报（检举）",
+      "subtitle": "安全、保密地举报不当行为（欧盟指令 2019/1937）"
+    },
+    "anonymous": {
+      "anonymousTitle": "匿名举报",
+      "identifiedTitle": "实名举报",
+      "anonymousDescription": "您的身份不会被存储，也不会向任何人透露。",
+      "identifiedDescription": "您的身份将对调查人员可见。"
+    },
+    "form": {
+      "categoryLabel": "类别",
+      "required": "*",
+      "categoryPlaceholder": "请选择类别…",
+      "severityLabel": "严重程度",
+      "subjectLabel": "主题",
+      "subjectPlaceholder": "问题简要概述",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "请尽可能详细地提供信息：发生了什么、时间、地点、涉及人员，以及您掌握的任何证据。"
+    },
+    "actions": {
+      "submit": "提交举报",
+      "submitting": "提交中…"
+    },
+    "error": {
+      "submitFailed": "举报提交失败。请重试。"
+    },
+    "category": {
+      "fraud": "欺诈",
+      "corruption": "腐败",
+      "harassment": "骚扰",
+      "discrimination": "歧视",
+      "safety_violation": "安全违规",
+      "data_breach": "数据泄露",
+      "financial_misconduct": "财务不当行为",
+      "environmental": "环境问题",
+      "retaliation": "报复",
+      "other": "其他"
+    },
+    "severity": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "严重"
+    }
+  },
+  "whistleblowingDashboard": {
+    "header": {
+      "title": "举报仪表板",
+      "subtitle": "欧盟指令 2019/1937 合规概览",
+      "viewAllReports": "查看全部举报"
+    },
+    "stats": {
+      "totalReports": "举报总数",
+      "open": "待处理",
+      "resolved": "已解决",
+      "avgResolution": "平均处理时长",
+      "avgResolutionDays": "{{count}}天",
+      "noValue": "--"
+    },
+    "section": {
+      "bySeverity": "按严重程度",
+      "byCategory": "按类别",
+      "recentReports": "近期举报"
+    },
+    "empty": {
+      "noData": "暂无数据",
+      "noReports": "暂无举报"
+    },
+    "table": {
+      "caseNumber": "案件编号",
+      "category": "类别",
+      "severity": "严重程度",
+      "subject": "主题",
+      "status": "状态",
+      "date": "日期"
+    },
+    "severity": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "critical": "严重"
+    },
+    "status": {
+      "submitted": "已提交",
+      "under_investigation": "调查中",
+      "escalated": "已升级",
+      "resolved": "已解决",
+      "dismissed": "已驳回",
+      "closed": "已关闭"
+    },
+    "category": {
+      "harassment": "骚扰",
+      "discrimination": "歧视",
+      "fraud": "欺诈",
+      "corruption": "腐败",
+      "safety_violation": "安全违规",
+      "data_breach": "数据泄露",
+      "financial_misconduct": "财务不当行为",
+      "other": "其他"
+    }
+  },
+  "myWellness": {
+    "header": {
+      "title": "我的健康",
+      "subtitle": "记录您的健康历程与个人目标",
+      "dailyCheckIn": "每日签到"
+    },
+    "error": {
+      "loadFailed": "无法加载健康数据，请稍后重试。"
+    },
+    "stats": {
+      "dayStreak": "连续天数",
+      "totalCheckIns": "签到总数",
+      "avgEnergy": "平均精力",
+      "goalsDone": "已完成目标"
+    },
+    "moodTrend": {
+      "title": "情绪趋势（最近 14 天）"
+    },
+    "mood": {
+      "great": "很好",
+      "good": "良好",
+      "okay": "一般",
+      "low": "低落",
+      "stressed": "压力大"
+    },
+    "goals": {
+      "title": "我的目标",
+      "addGoal": "添加目标",
+      "empty": "暂无目标。创建您的第一个健康目标吧！",
+      "update": "更新"
+    },
+    "goalStatus": {
+      "completed": "已完成",
+      "abandoned": "已放弃",
+      "active": "进行中"
+    },
+    "goalFrequency": {
+      "daily": "每日",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "goalType": {
+      "steps": "步数",
+      "exercise": "运动",
+      "meditation": "冥想",
+      "water": "饮水量",
+      "sleep": "睡眠",
+      "custom": "自定义"
+    },
+    "programs": {
+      "title": "我的计划",
+      "emptyCompleted": "尚未完成任何计划。继续加油！",
+      "emptyActive": "暂无进行中的计划。",
+      "markComplete": "标记为完成",
+      "pointsReward": "完成后获得 +{{points}} 积分",
+      "tabActive_one": "进行中（{{count}}）",
+      "tabActive_other": "进行中（{{count}}）",
+      "tabCompleted_one": "已完成（{{count}}）",
+      "tabCompleted_other": "已完成（{{count}}）"
+    },
+    "programStatus": {
+      "completed": "已完成",
+      "active": "进行中"
+    },
+    "checkIns": {
+      "title": "最近签到",
+      "colDate": "日期",
+      "colMood": "情绪",
+      "colEnergy": "精力",
+      "colSleep": "睡眠",
+      "colExercise": "运动"
+    },
+    "goalModal": {
+      "title": "创建健康目标",
+      "labelTitle": "标题 *",
+      "placeholderTitle": "例如：每天步行 10,000 步",
+      "labelGoalType": "目标类型",
+      "labelFrequency": "频率",
+      "labelTargetValue": "目标值 *",
+      "placeholderTargetValue": "例如：10000",
+      "labelUnit": "单位 *",
+      "placeholderUnit": "例如：步、分钟",
+      "labelStartDate": "开始日期 *",
+      "labelEndDate": "结束日期",
+      "errorCreateFailed": "创建目标失败",
+      "cancel": "取消",
+      "creating": "创建中...",
+      "submit": "创建目标",
+      "errorEndBeforeStart": "结束日期不能早于开始日期。",
+      "createSuccess": "目标已创建"
+    },
+    "progressModal": {
+      "title": "更新进度",
+      "prompt": "添加进度（当前：{{current}} {{unit}}）：",
+      "placeholder": "要添加的数量（{{unit}}）",
+      "cancel": "取消",
+      "saving": "保存中...",
+      "submit": "更新"
+    }
+  },
+  "wellnessDashboard": {
+    "mood": {
+      "great": "非常好",
+      "good": "良好",
+      "okay": "一般",
+      "low": "低落",
+      "stressed": "压力大",
+      "title": "情绪分布（30天）",
+      "noData": "暂无签到数据",
+      "percent": "{{pct}}%"
+    },
+    "programType": {
+      "fitness": "健身",
+      "mental_health": "心理健康",
+      "nutrition": "营养",
+      "meditation": "冥想",
+      "yoga": "瑜伽",
+      "team_activity": "团队活动",
+      "health_checkup": "健康检查",
+      "other": "其他"
+    },
+    "loading": "正在加载健康仪表板……",
+    "error": {
+      "load": "健康仪表板加载失败，请稍后重试。",
+      "createProgram": "创建项目失败"
+    },
+    "header": {
+      "title": "健康仪表板",
+      "subtitle": "全组织健康指标与项目管理",
+      "createProgram": "创建项目"
+    },
+    "kpi": {
+      "wellnessScore": "健康评分",
+      "wellnessScoreValue": "{{score}}/100",
+      "valueEmpty": "---",
+      "activePrograms": "进行中项目",
+      "activeParticipants": "活跃参与者",
+      "goalCompletion": "目标完成率",
+      "goalCompletionValue": "{{rate}}%",
+      "goalsProgress": "{{completed}} / {{total}} 个目标",
+      "totalPrograms_one": "共 {{count}} 个项目",
+      "totalPrograms_other": "共 {{count}} 个项目",
+      "checkins30d_one": "{{count}} 次签到（30天）",
+      "checkins30d_other": "{{count}} 次签到（30天）"
+    },
+    "metrics": {
+      "title": "平均指标（30天）",
+      "avgEnergyLevel": "平均精力水平",
+      "avgEnergyLevelValue": "{{value}} / 5",
+      "avgExerciseMinutes": "平均运动时长",
+      "avgExerciseMinutesValue": "{{value}} 分钟",
+      "totalEnrollments": "总报名人数",
+      "completedEnrollments_one": "已完成 {{count}} 人",
+      "completedEnrollments_other": "已完成 {{count}} 人"
+    },
+    "topPrograms": {
+      "title": "报名人数最多的项目",
+      "colProgram": "项目",
+      "colType": "类型",
+      "colEnrolled": "已报名",
+      "colPoints": "积分",
+      "colStatus": "状态",
+      "enrolledOfMax": "{{enrolled}} / {{max}}",
+      "pointsReward": "+{{points}}",
+      "pointsEmpty": "---"
+    },
+    "status": {
+      "active": "进行中",
+      "inactive": "未启用"
+    },
+    "modal": {
+      "title": "创建健康项目",
+      "fieldTitle": "标题 *",
+      "titlePlaceholder": "例如：30天瑜伽挑战",
+      "fieldDescription": "描述",
+      "descriptionPlaceholder": "项目描述……",
+      "fieldType": "类型",
+      "fieldMaxParticipants": "最大参与人数",
+      "maxParticipantsPlaceholder": "不限",
+      "fieldStartDate": "开始日期",
+      "fieldEndDate": "结束日期",
+      "fieldPointsReward": "积分奖励",
+      "cancel": "取消",
+      "submit": "创建项目",
+      "submitting": "正在创建……"
+    },
+    "toast": {
+      "endBeforeStart": "结束日期不能早于开始日期。"
+    }
+  },
+  "wellnessPage": {
+    "programType": {
+      "fitness": "健身",
+      "mental_health": "心理健康",
+      "nutrition": "营养",
+      "meditation": "冥想",
+      "yoga": "瑜伽",
+      "team_activity": "团队活动",
+      "health_checkup": "健康检查",
+      "other": "其他"
+    },
+    "enroll": {
+      "success": "已成功报名参加项目",
+      "error": "报名参加项目失败"
+    },
+    "header": {
+      "title": "健康关怀项目",
+      "subtitle": "探索项目、追踪您的身心状态并实现您的健康目标"
+    },
+    "actions": {
+      "dailyCheckIn": "每日打卡",
+      "myWellness": "我的健康"
+    },
+    "stats": {
+      "checkInStreak": "连续打卡",
+      "activePrograms": "进行中的项目",
+      "goalsCompleted": "已完成目标",
+      "latestMood": "最近心情",
+      "moodEmpty": "---",
+      "checkInStreakValue_one": "{{count}} 天",
+      "checkInStreakValue_other": "{{count}} 天"
+    },
+    "filter": {
+      "allTypes": "全部类型",
+      "programsAvailable_one": "有 {{count}} 个可参加的项目",
+      "programsAvailable_other": "有 {{count}} 个可参加的项目"
+    },
+    "list": {
+      "loading": "正在加载项目...",
+      "empty": "暂无可参加的健康关怀项目"
+    },
+    "card": {
+      "ongoing": "持续进行",
+      "enrolledButton": "已报名",
+      "enrollNow": "立即报名",
+      "pointsReward_one": "+{{count}} 积分",
+      "pointsReward_other": "+{{count}} 积分",
+      "enrolledCount_one": "{{count}} 人已报名",
+      "enrolledCount_other": "{{count}} 人已报名"
+    },
+    "pagination": {
+      "pageOf": "第 {{page}} 页，共 {{totalPages}} 页"
+    }
+  },
+  "documentCategories": {
+    "page": {
+      "title": "文档分类",
+      "subtitle": "管理贵组织的文档分类。"
+    },
+    "actions": {
+      "newCategory": "新建分类",
+      "cancel": "取消",
+      "update": "更新",
+      "create": "创建",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "form": {
+      "editTitle": "编辑分类",
+      "createTitle": "创建分类",
+      "nameLabel": "名称 *",
+      "namePlaceholder": "例如：Aadhaar Card",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "mandatoryLabel": "所有员工必填"
+    },
+    "table": {
+      "categoryHeader": "分类",
+      "descriptionHeader": "描述",
+      "documentsHeader": "文档",
+      "mandatoryHeader": "必填",
+      "actionsHeader": "操作",
+      "loading": "加载中...",
+      "empty": "暂无分类。请创建一个以开始使用。",
+      "emptyValue": "--"
+    },
+    "mandatory": {
+      "required": "必填",
+      "optional": "可选"
+    },
+    "deactivate": {
+      "titleNamed": "停用分类“{{name}}”？",
+      "title": "停用分类？",
+      "description": "此分类下的文档将予以保留。",
+      "confirm": "停用"
+    }
+  },
+  "myDocuments": {
+    "page": {
+      "title": "我的文档",
+      "subtitle": "上传、查看并跟踪文档状态。"
+    },
+    "actions": {
+      "uploadDocument": "上传文档"
+    },
+    "upload": {
+      "heading": "上传文档",
+      "fileLabel": "文件 *",
+      "nameLabel": "文档名称",
+      "namePlaceholder": "可选 - 默认使用文件名",
+      "categoryLabel": "类别 *",
+      "categoryPlaceholder": "选择类别",
+      "expiryLabel": "到期日期",
+      "submit": "上传",
+      "submitting": "上传中..."
+    },
+    "list": {
+      "loading": "正在加载您的文档...",
+      "empty": "您尚未上传任何文档。",
+      "uploadFirst": "上传您的第一个文档"
+    },
+    "expiry": {
+      "expired": "已过期",
+      "expiringSoon": "即将到期",
+      "expires": "将于"
+    },
+    "doc": {
+      "rejectionReason": "拒绝原因：{{reason}}",
+      "download": "下载",
+      "reupload": "重新上传"
+    },
+    "status": {
+      "verified": "已验证",
+      "rejected": "已拒绝",
+      "pending": "待处理"
+    },
+    "toast": {
+      "downloadFailed": "文档下载失败。"
+    },
+    "pagination": {
+      "previous": "上一页",
+      "next": "下一页",
+      "summary_one": "第 {{page}} 页，共 {{totalPages}} 页（共 {{count}} 项）",
+      "summary_other": "第 {{page}} 页，共 {{totalPages}} 页（共 {{count}} 项）"
+    }
+  },
+  "categoryPosts": {
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo_one": "{{count}} 分钟前",
+      "minutesAgo_other": "{{count}} 分钟前",
+      "hoursAgo_one": "{{count}} 小时前",
+      "hoursAgo_other": "{{count}} 小时前",
+      "daysAgo_one": "{{count}} 天前",
+      "daysAgo_other": "{{count}} 天前"
+    },
+    "header": {
+      "defaultCategoryName": "分类",
+      "newPost": "发布帖子"
+    },
+    "filters": {
+      "allTypes": "全部类型",
+      "discussions": "讨论",
+      "questions": "问题",
+      "ideas": "想法",
+      "polls": "投票"
+    },
+    "sort": {
+      "recent": "最新",
+      "popular": "热门",
+      "active": "活跃",
+      "mostViewed": "最多浏览"
+    },
+    "list": {
+      "loading": "正在加载帖子…",
+      "empty": "该分类还没有帖子，快来发起讨论吧！"
+    },
+    "postType": {
+      "discussion": "讨论",
+      "question": "问题",
+      "idea": "想法",
+      "poll": "投票"
+    },
+    "badge": {
+      "pinned": "置顶",
+      "locked": "已锁定"
+    },
+    "pagination": {
+      "previous": "上一页",
+      "next": "下一页",
+      "pageInfo_one": "第 {{page}} / {{totalPages}} 页（共 {{count}} 条）",
+      "pageInfo_other": "第 {{page}} / {{totalPages}} 页（共 {{count}} 条）"
+    }
+  },
+  "postDetail": {
+    "postType": {
+      "discussion": "讨论",
+      "question": "问题",
+      "idea": "想法",
+      "poll": "投票"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo_one": "{{count}} 分钟前",
+      "minutesAgo_other": "{{count}} 分钟前",
+      "hoursAgo_one": "{{count}} 小时前",
+      "hoursAgo_other": "{{count}} 小时前",
+      "daysAgo_one": "{{count}} 天前",
+      "daysAgo_other": "{{count}} 天前"
+    },
+    "loading": "正在加载帖子...",
+    "notFound": "未找到帖子",
+    "reply": {
+      "acceptedAnswer": "已采纳答案",
+      "replyAction": "回复",
+      "acceptAnswer": "采纳答案"
+    },
+    "badge": {
+      "pinned": "已置顶",
+      "locked": "已锁定"
+    },
+    "action": {
+      "like": "点赞",
+      "unpin": "取消置顶",
+      "pin": "置顶",
+      "unlock": "解锁",
+      "lock": "锁定",
+      "delete": "删除"
+    },
+    "replies": {
+      "empty": "暂无回复。快来抢先回复吧！",
+      "heading_one": "{{count}} 条回复",
+      "heading_other": "{{count}} 条回复"
+    },
+    "form": {
+      "replyingTo": "正在回复 {{name}}",
+      "cancel": "取消",
+      "placeholder": "写下回复...",
+      "posting": "发布中...",
+      "submit": "回复"
+    },
+    "locked": {
+      "message": "此帖子已锁定，无法发表新回复。"
+    },
+    "deleteReply": {
+      "title": "删除此回复？",
+      "confirm": "删除"
+    },
+    "deletePost": {
+      "title": "删除此帖子及其所有回复？",
+      "description": "此操作无法撤销。",
+      "confirm": "删除"
+    },
+    "replyCount_one": "{{count}} 条回复",
+    "replyCount_other": "{{count}} 条回复"
+  },
+  "positionDetail": {
+    "error": {
+      "assignFailed": "无法将员工分配到此职位。",
+      "saveChangesFailed": "无法保存职位更改。",
+      "deleteFailed": "删除职位失败"
+    },
+    "loading": "加载中...",
+    "notFound": "未找到职位",
+    "backToPositions": "返回职位列表",
+    "action": {
+      "edit": "编辑",
+      "delete": "删除",
+      "assignEmployee": "分配员工"
+    },
+    "status": {
+      "active": "启用",
+      "filled": "已招满",
+      "frozen": "已冻结",
+      "closed": "已关闭"
+    },
+    "assignForm": {
+      "heading": "分配员工至职位",
+      "employeeLabel": "员工 *",
+      "searchPlaceholder": "开始输入以搜索用户...",
+      "noUsersMatch": "无匹配用户",
+      "startDateLabel": "开始日期 *",
+      "primaryPosition": "主要职位",
+      "assigning": "分配中...",
+      "assign": "分配",
+      "assignFailedInline": "分配失败"
+    },
+    "common": {
+      "cancel": "取消"
+    },
+    "editForm": {
+      "heading": "编辑职位",
+      "titleLabel": "职位名称 *",
+      "departmentLabel": "部门",
+      "departmentNone": "无",
+      "employmentTypeLabel": "雇佣类型",
+      "headcountBudgetLabel": "编制人数",
+      "minSalaryLabel": "最低薪资（分）",
+      "maxSalaryLabel": "最高薪资（分）",
+      "jobDescriptionLabel": "职位描述",
+      "criticalRole": "关键岗位",
+      "headcountMinError": "编制人数至少为 1。",
+      "saving": "保存中...",
+      "saveChanges": "保存更改",
+      "updateSuccess": "已成功更新职位\"{{title}}\"。",
+      "updateFailedInline": "更新职位失败"
+    },
+    "employmentType": {
+      "full_time": "全职",
+      "part_time": "兼职",
+      "contract": "合同工",
+      "intern": "实习"
+    },
+    "details": {
+      "heading": "职位详情",
+      "employmentType": "雇佣类型",
+      "headcount": "编制人数",
+      "salaryRange": "薪资范围",
+      "reportsTo": "汇报对象"
+    },
+    "jobDescription": {
+      "heading": "职位描述"
+    },
+    "requirements": {
+      "heading": "任职要求"
+    },
+    "assignees": {
+      "noneAssigned": "暂无任职人员",
+      "since": "自 {{date}} 起",
+      "actingInterim": "代理/临时",
+      "endAssignmentTitle": "结束任职",
+      "heading_one": "当前任职人员（{{count}}）",
+      "heading_other": "当前任职人员（{{count}}）"
+    },
+    "history": {
+      "heading": "任职历史",
+      "dateRangeNA": "无"
+    },
+    "delete": {
+      "heading": "删除职位？",
+      "body": "删除 {{name}}？现有任职将被结束，且该职位将被关闭。此操作无法撤销。",
+      "deleting": "删除中...",
+      "confirm": "删除"
+    },
+    "endAssignment": {
+      "title": "结束此任职？",
+      "confirmText": "结束任职"
+    }
+  },
+  "acceptInvitation": {
+    "errors": {
+      "invalidToken": "此邀请链接无效、已被使用或已过期。请联系您的管理员重新发送邀请。",
+      "genericFailure": "无法接受邀请，请重试。"
+    },
+    "validation": {
+      "firstNameRequired": "名字为必填项。",
+      "lastNameRequired": "姓氏为必填项。",
+      "passwordsDoNotMatch": "两次输入的密码不一致。",
+      "passwordTooShort_one": "密码至少需包含 {{count}} 个字符。",
+      "passwordTooShort_other": "密码至少需包含 {{count}} 个字符。"
+    },
+    "toast": {
+      "success": "邀请已接受，您现在可以登录了。"
+    },
+    "logoAlt": "EOR",
+    "heading": "接受邀请",
+    "subheading": "设置您的姓名和密码以激活您的 EOR 账户。",
+    "loadingInvitation": "正在加载邀请…",
+    "form": {
+      "firstNameLabel": "名字",
+      "firstNamePlaceholder": "Ada",
+      "lastNameLabel": "姓氏",
+      "namesLockedNote": "您的姓名已登记在 {{org}}。如需变更，请联系您的 HR 管理员。",
+      "orgFallback": "您的组织",
+      "passwordLabel": "密码",
+      "hidePasswordAria": "隐藏密码",
+      "showPasswordAria": "显示密码",
+      "confirmPasswordLabel": "确认密码",
+      "confirmPasswordPlaceholder": "请再次输入相同的密码",
+      "submitting": "正在激活账户...",
+      "submit": "接受邀请并登录",
+      "alreadyHaveAccount": "已有账户？",
+      "signInLink": "登录",
+      "passwordPlaceholder_one": "至少 {{count}} 个字符",
+      "passwordPlaceholder_other": "至少 {{count}} 个字符"
+    }
+  },
+  "messagesPage": {
+    "conversationRow": {
+      "mutedAriaLabel": "已静音",
+      "groupCreated": "群组已创建",
+      "noMessagesYet": "暂无消息",
+      "unreadCountOverflow": "99+"
+    },
+    "toast": {
+      "photoMustBeImage": "个人头像必须是图片文件。",
+      "photoUpdated": "头像已更新。",
+      "photoUploadFailed": "无法上传照片。",
+      "statusUpdateFailed": "无法更新你的状态，请重试。",
+      "openNotesFailed": "无法打开你的笔记。"
+    },
+    "profile": {
+      "yourProfileTitle": "你的资料",
+      "changePhotoTitle": "更换头像",
+      "youFallback": "你",
+      "statusLabel": "状态",
+      "statusPlaceholder": "设置状态…",
+      "save": "保存",
+      "setStatusTitle": "设置你的状态",
+      "messageYourself": "给自己发消息（笔记）"
+    },
+    "search": {
+      "placeholder": "搜索聊天和消息…",
+      "messagesHeader": "消息",
+      "noMessageMatch": "没有与“{{query}}”匹配的消息。",
+      "senderPrefix": "{{name}}："
+    },
+    "list": {
+      "newChat": "新建聊天",
+      "backToChats": "← 返回聊天",
+      "archived": "已归档",
+      "loadError": "加载会话失败，请重试。",
+      "noSearchMatch": "没有与“{{query}}”匹配的会话。",
+      "noConversationsTitle": "暂无会话",
+      "noConversationsHint": "点击“新建聊天”按钮开始。",
+      "archivedWithCount_one": "已归档（{{count}}）",
+      "archivedWithCount_other": "已归档（{{count}}）"
+    },
+    "empty": {
+      "yourMessagesTitle": "你的消息",
+      "yourMessagesHint": "在左侧选择一个会话，或新建聊天开始发消息。"
+    }
+  },
+  "registerPage": {
+    "header": {
+      "title": "创建您的 EOR 账户",
+      "subtitle": "几分钟内即可完成组织设置"
+    },
+    "error": {
+      "registrationFailed": "注册失败"
+    },
+    "section": {
+      "organization": "组织",
+      "adminAccount": "管理员账户"
+    },
+    "field": {
+      "companyName": {
+        "label": "公司名称",
+        "placeholder": "Acme Corp"
+      },
+      "country": {
+        "label": "国家/地区"
+      },
+      "state": {
+        "label": "省/州"
+      },
+      "firstName": {
+        "label": "名字"
+      },
+      "lastName": {
+        "label": "姓氏"
+      },
+      "email": {
+        "label": "电子邮箱",
+        "placeholder": "admin@company.com"
+      },
+      "password": {
+        "label": "密码",
+        "placeholder": "至少 8 个字符，含大写、小写、数字和特殊字符"
+      }
+    },
+    "password": {
+      "hideAriaLabel": "隐藏密码",
+      "showAriaLabel": "显示密码"
+    },
+    "submit": {
+      "creating": "正在创建账户…",
+      "default": "创建账户"
+    },
+    "footer": {
+      "alreadyHaveAccount": "已有账户？",
+      "signIn": "登录"
+    }
+  },
+  "messageContextMenu": {
+    "actions": {
+      "reply": "回复",
+      "forward": "转发",
+      "selectMessages": "选择消息",
+      "messageInfo": "消息信息",
+      "copyText": "复制文本",
+      "copied": "已复制",
+      "copyLink": "复制链接",
+      "pin": "置顶",
+      "unpin": "取消置顶",
+      "edit": "编辑",
+      "delete": "删除"
+    }
+  },
+  "receiptsPanel": {
+    "header": {
+      "title": "消息信息"
+    },
+    "actions": {
+      "close": "关闭"
+    },
+    "state": {
+      "loading": "加载中…",
+      "error": "无法加载消息信息。",
+      "noOtherMembers": "没有其他成员。"
+    },
+    "section": {
+      "readBy": "已读",
+      "deliveredTo": "已送达",
+      "pending": "待处理"
+    }
+  },
+  "enableNotificationsBanner": {
+    "toast": {
+      "enabledSuccess": "已启用桌面提醒 — 有新消息时将通知你。",
+      "blocked": "提醒已被屏蔽。你可以在浏览器的站点设置中重新启用。"
+    },
+    "confirmation": {
+      "title": "桌面提醒已开启",
+      "body": "有新消息时将在此通知你。"
+    },
+    "description": "即使你正在使用其他应用，也能收到新消息的通知。",
+    "button": {
+      "enabling": "正在启用…",
+      "enable": "启用提醒",
+      "dismissAriaLabel": "关闭"
+    }
+  },
+  "messageAttachment": {
+    "card": {
+      "openTitle": "打开 {{name}}"
+    }
+  },
+  "messageTicks": {
+    "status": {
+      "sending": "发送中",
+      "sent": "已发送",
+      "delivered": "已送达",
+      "read": "已读"
+    },
+    "failed": {
+      "title": "发送失败 — 点按重试",
+      "ariaLabel": "发送失败，点按重试",
+      "retry": "重试"
+    }
+  },
+  "emojiPicker": {
+    "category": {
+      "smileys": "笑脸",
+      "gestures": "手势",
+      "objects": "物品"
+    },
+    "button": {
+      "reactWithAriaLabel": "用 {{emoji}} 回应"
+    }
+  },
+  "newChatModal": {
+    "header": {
+      "title": "新建聊天"
+    },
+    "actions": {
+      "close": "关闭",
+      "createGroup": "创建群组"
+    },
+    "mode": {
+      "direct": "单聊",
+      "group": "群聊"
+    },
+    "group": {
+      "namePlaceholder": "群组名称",
+      "enterNameHint": "请输入群组名称以继续",
+      "selectedNeedMore_one": "已选择 {{count}} 人 · 至少需要 2 人",
+      "selectedNeedMore_other": "已选择 {{count}} 人 · 至少需要 2 人",
+      "selectedCount_one": "已选择 {{count}} 人",
+      "selectedCount_other": "已选择 {{count}} 人"
+    },
+    "search": {
+      "placeholder": "搜索员工…"
+    },
+    "list": {
+      "loadError": "加载员工失败。",
+      "emptySearch": "没有符合搜索条件的员工。",
+      "empty": "未找到员工。"
+    },
+    "direct": {
+      "starting": "正在发起会话…"
+    },
+    "toast": {
+      "directError": "无法发起该会话。",
+      "groupError": "无法创建群组。"
+    },
+    "validation": {
+      "groupNameRequired": "请为群组命名。",
+      "minTwoMembers": "群组至少需选择 2 人。"
+    }
+  },
+  "forwardModal": {
+    "toast": {
+      "forwardError": "转发失败，请重试。",
+      "forwardSuccess_one": "已将 {{count}} 条消息转发至 {{chatCount}} 个会话。",
+      "forwardSuccess_other": "已将 {{count}} 条消息转发至 {{chatCount}} 个会话。"
+    },
+    "preview": {
+      "attachment": "📎 {{name}}",
+      "messageFallback": "消息",
+      "multiple_one": "{{count}} 条消息",
+      "multiple_other": "{{count}} 条消息"
+    },
+    "heading": {
+      "title": "转发至…"
+    },
+    "section": {
+      "forwarding": "正在转发",
+      "chats": "会话",
+      "people": "联系人"
+    },
+    "search": {
+      "placeholder": "搜索会话和联系人…"
+    },
+    "state": {
+      "loading": "加载中…",
+      "noMatches": "未找到与“{{query}}”匹配的结果。",
+      "noTargets": "暂无可转发的对象。"
+    },
+    "button": {
+      "forwarding": "正在转发…",
+      "forward": "转发"
+    },
+    "footer": {
+      "selectedCount_one": "已选择 {{count}} 个",
+      "selectedCount_other": "已选择 {{count}} 个"
+    }
+  },
+  "addMembersModal": {
+    "header": {
+      "title": "添加成员",
+      "close": "关闭"
+    },
+    "search": {
+      "placeholder": "搜索员工…"
+    },
+    "list": {
+      "loading": "加载中…",
+      "noMatches": "未找到与“{{search}}”匹配的结果。",
+      "allInGroup": "所有人都已在此群组中。"
+    },
+    "footer": {
+      "add": "添加",
+      "adding": "添加中…",
+      "selectedCount_one": "已选择 {{count}} 人",
+      "selectedCount_other": "已选择 {{count}} 人"
+    },
+    "toast": {
+      "addFailed": "无法添加成员。请重试。",
+      "added_one": "已添加 {{count}} 名成员。",
+      "added_other": "已添加 {{count}} 名成员。"
+    }
+  },
+  "employeeProfile": {
+    "tabs": {
+      "personal": "个人信息",
+      "education": "教育经历",
+      "experience": "工作经历",
+      "dependents": "家属",
+      "addresses": "地址",
+      "custom": "自定义字段"
+    },
+    "invalid": {
+      "title": "无效的员工",
+      "description": "URL 中的员工 ID 缺失或无效。",
+      "backToDirectory": "← 返回员工目录"
+    },
+    "accessDenied": {
+      "title": "访问被拒绝",
+      "description": "您无权查看此档案。",
+      "backToDashboard": "← 返回仪表板"
+    },
+    "loading": "正在加载档案…",
+    "notFound": "未找到员工",
+    "header": {
+      "backToDirectory": "返回目录",
+      "biometricPhotoTooltip": "照片通过生物识别自助终端登记管理",
+      "biometricFaceAlt": "生物识别人脸",
+      "profilePhotoAlt": "档案",
+      "noDesignation": "无职位",
+      "biometricHint": "照片来自生物识别登记——通过自助终端管理。",
+      "removingPhoto": "正在移除…",
+      "removePhoto": "移除照片",
+      "empCode": "员工编号：{{code}}",
+      "joined": "入职日期：{{date}}",
+      "cancel": "取消",
+      "editMyInfo": "编辑我的信息",
+      "editProfile": "编辑档案"
+    },
+    "removePhotoDialog": {
+      "title": "移除您的档案照片？",
+      "description": "将再次显示姓名首字母。",
+      "confirm": "移除照片"
+    },
+    "field": {
+      "emptyValue": "-"
+    },
+    "validation": {
+      "pan": "PAN 必须为 5 个字母 + 4 位数字 + 1 个字母（例如 ABCDE1234F）",
+      "aadhar": "Aadhaar 必须为 12 位数字",
+      "uan": "UAN 必须为 12 位数字",
+      "passport": "护照号必须为 1 个字母 + 7 位数字（例如 A1234567）"
+    },
+    "personal": {
+      "saveError": "保存失败",
+      "selfServiceNotice": "您可以编辑个人信息和紧急联系人信息。如需更新管理类字段，请联系人力资源部。",
+      "field": {
+        "personalEmail": "个人邮箱",
+        "contactNumber": "联系电话",
+        "gender": "性别",
+        "dateOfBirth": "出生日期",
+        "bloodGroup": "血型",
+        "maritalStatus": "婚姻状况",
+        "nationality": "国籍",
+        "aadharNumber": "Aadhaar 号码",
+        "panNumber": "PAN 号码",
+        "uanNumber": "UAN 号码",
+        "passportNumber": "护照号码",
+        "passportExpiry": "护照有效期",
+        "visaStatus": "签证状态",
+        "visaExpiry": "签证有效期",
+        "emergencyContact": "紧急联系人",
+        "emergencyPhone": "紧急联系电话",
+        "emergencyRelation": "与紧急联系人关系",
+        "noticePeriodDays": "通知期（天）",
+        "reportingManager": "直属经理",
+        "department": "部门",
+        "shift": "班次",
+        "designation": "职位",
+        "employeeCode": "员工编号",
+        "probationStart": "试用期开始",
+        "probationEnd": "试用期结束",
+        "confirmationDate": "转正日期"
+      },
+      "select": {
+        "placeholder": "请选择"
+      },
+      "aadhar": {
+        "placeholder": "12 位数字"
+      },
+      "uan": {
+        "placeholder": "12 位数字"
+      },
+      "reportingManager": {
+        "none": "无经理",
+        "option": "{{name}}（{{role}}）- {{email}}"
+      },
+      "department": {
+        "none": "无部门"
+      },
+      "shift": {
+        "none": "无班次"
+      },
+      "designation": {
+        "placeholderSelfService": "如需更改请联系人力资源部",
+        "placeholderHint": "例如 高级工程师"
+      },
+      "empCode": {
+        "placeholderSelfService": "如需设置请联系人力资源部",
+        "placeholderHint": "例如 EMP001"
+      },
+      "saving": "正在保存…",
+      "saveChanges": "保存更改",
+      "reportingManagerFallback": "用户 #{{id}}",
+      "departmentFallback": "部门 #{{id}}",
+      "shiftFallback": "班次 #{{id}}"
+    },
+    "gender": {
+      "male": "男",
+      "female": "女",
+      "other": "其他"
+    },
+    "maritalStatus": {
+      "single": "未婚",
+      "married": "已婚",
+      "divorced": "离异",
+      "widowed": "丧偶"
+    },
+    "customRoles": {
+      "label": "自定义角色"
+    },
+    "additionalManagers": {
+      "label": "其他经理",
+      "description": "与直属经理拥有相同团队范围访问权限的协同管理者。所有团队范围的权限均予以认可。",
+      "loading": "正在加载…",
+      "empty": "无其他经理",
+      "userFallback": "用户 #{{id}}",
+      "removeAria": "移除 {{name}}",
+      "removeAriaFallback": "经理",
+      "searchPlaceholderEmpty": "按姓名或邮箱搜索…",
+      "searchPlaceholderMore": "添加其他…",
+      "noMatches": "无匹配用户",
+      "allSelected": "所有符合条件的用户均已选择",
+      "saving": "正在保存…",
+      "save": "保存其他经理",
+      "unsaved": "未保存的更改",
+      "saved": "已保存",
+      "selectedCount_one": "（已选 {{count}} 个）",
+      "selectedCount_other": "（已选 {{count}} 个）"
+    },
+    "apiError": {
+      "requestFailed": "请求失败"
+    },
+    "education": {
+      "add": "添加教育经历",
+      "editHeading": "编辑教育经历",
+      "field": {
+        "degree": "学位 *",
+        "institution": "院校 *",
+        "fieldOfStudy": "专业",
+        "grade": "成绩",
+        "startYear": "入学年份",
+        "endYear": "毕业年份"
+      },
+      "degree": {
+        "placeholder": "例如 B.Tech"
+      },
+      "institution": {
+        "placeholder": "例如 IIT Delhi"
+      },
+      "validation": {
+        "required": "学位和院校为必填项",
+        "endYear": "毕业年份必须不早于入学年份"
+      },
+      "empty": "尚未添加教育经历记录。",
+      "yearRange": "{{start}} - {{end}}",
+      "fromYear": "自 {{year}}",
+      "gradeSuffix": " | 成绩：{{grade}}",
+      "deleteDialog": {
+        "title": "删除此教育经历记录？"
+      }
+    },
+    "common": {
+      "save": "保存",
+      "saving": "正在保存…",
+      "cancel": "取消",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "experience": {
+      "add": "添加工作经历",
+      "editHeading": "编辑工作经历",
+      "field": {
+        "company": "公司 *",
+        "designation": "职位 *",
+        "startDate": "开始日期 *",
+        "endDate": "结束日期",
+        "description": "描述"
+      },
+      "currentlyWorking": "目前在职",
+      "validation": {
+        "required": "公司、职位和开始日期为必填项"
+      },
+      "empty": "尚未添加工作经历记录。",
+      "currentBadge": "当前",
+      "present": "至今",
+      "deleteDialog": {
+        "title": "删除此工作经历记录？"
+      }
+    },
+    "dependents": {
+      "add": "添加家属",
+      "editHeading": "编辑家属",
+      "field": {
+        "name": "姓名 *",
+        "relationship": "关系 *",
+        "dateOfBirth": "出生日期",
+        "gender": "性别",
+        "nomineePercent": "受益比例 %"
+      },
+      "relationship": {
+        "placeholder": "例如 配偶、子女、父母"
+      },
+      "isNominee": "设为受益人",
+      "validation": {
+        "required": "姓名和关系为必填项"
+      },
+      "empty": "尚未添加家属。",
+      "column": {
+        "name": "姓名",
+        "relationship": "关系",
+        "dob": "出生日期",
+        "gender": "性别",
+        "nominee": "受益人",
+        "actions": "操作"
+      },
+      "nomineeYes": "是",
+      "nomineeYesPercent": "是（{{percent}}%）",
+      "nomineeNo": "否",
+      "deleteDialog": {
+        "title": "删除此家属？"
+      }
+    },
+    "addresses": {
+      "add": "添加地址",
+      "editHeading": "编辑地址",
+      "field": {
+        "type": "类型 *",
+        "country": "国家/地区",
+        "line1": "地址行 1 *",
+        "line2": "地址行 2",
+        "city": "城市 *",
+        "state": "省/州 *",
+        "zipcode": "邮政编码 *"
+      },
+      "type": {
+        "current": "现居地址",
+        "permanent": "永久地址"
+      },
+      "validation": {
+        "required": "地址行 1、城市、省/州和邮政编码为必填项"
+      },
+      "empty": "尚未添加地址。",
+      "deleteDialog": {
+        "title": "删除此地址？"
+      }
+    },
+    "custom": {
+      "loading": "正在加载自定义字段…",
+      "saveError": "保存自定义字段失败",
+      "emptyTitle": "尚未为员工定义任何自定义字段。",
+      "emptyHint": "人力资源管理员可在自定义字段设置页面创建自定义字段。",
+      "heading": "自定义字段",
+      "edit": "编辑",
+      "save": "保存",
+      "cancel": "取消",
+      "checkboxYes": "是",
+      "checkboxNo": "否",
+      "select": {
+        "placeholder": "请选择…"
+      },
+      "file": {
+        "placeholder": "文件引用或路径"
+      }
+    }
+  },
+  "importEmployees": {
+    "page": {
+      "title": "导入员工",
+      "subtitle": "上传 CSV 文件以批量将员工导入您的组织。"
+    },
+    "success": {
+      "title": "导入成功",
+      "importMore": "导入更多员工",
+      "message_one": "已成功导入 {{count}} 名员工。",
+      "message_other": "已成功导入 {{count}} 名员工。"
+    },
+    "dropzone": {
+      "instructions": "将 CSV 文件拖放到此处，或点击浏览",
+      "columnsHint": "必填列：first_name、last_name、email。可选列：designation、department_name、emp_code、role、contact_number",
+      "chooseFile": "选择文件",
+      "selectedFile": "已选择：{{name}}"
+    },
+    "loading": {
+      "parsing": "正在解析并验证 CSV..."
+    },
+    "summary": {
+      "totalRows": "总行数",
+      "valid": "有效",
+      "errors": "错误"
+    },
+    "validTable": {
+      "col": {
+        "name": "姓名",
+        "email": "邮箱",
+        "empCode": "员工编号",
+        "designation": "职位",
+        "department": "部门",
+        "status": "状态"
+      },
+      "emptyCell": "-",
+      "title_one": "有效员工（{{count}}）",
+      "title_other": "有效员工（{{count}}）",
+      "andMore_one": "...还有 {{count}} 条",
+      "andMore_other": "...还有 {{count}} 条"
+    },
+    "errorTable": {
+      "col": {
+        "row": "行",
+        "name": "姓名",
+        "email": "邮箱",
+        "errors": "错误"
+      },
+      "title_one": "错误（{{count}}）",
+      "title_other": "错误（{{count}}）"
+    },
+    "import": {
+      "importing": "正在导入...",
+      "button_one": "导入 {{count}} 名有效员工",
+      "button_other": "导入 {{count}} 名有效员工"
+    }
+  },
+  "platformSettings": {
+    "header": {
+      "title": "平台设置",
+      "subtitle": "查看当前平台配置和系统信息。"
+    },
+    "sections": {
+      "platformInfo": {
+        "title": "平台信息"
+      },
+      "email": {
+        "title": "邮件 / SMTP 设置"
+      },
+      "security": {
+        "title": "安全设置"
+      }
+    },
+    "fields": {
+      "serverVersion": "服务器版本",
+      "nodeVersion": "Node.js 版本",
+      "environment": "环境",
+      "uptime": "运行时长",
+      "smtpStatus": "SMTP 状态",
+      "smtpHost": "SMTP 主机",
+      "fromAddress": "发件地址",
+      "bcryptRounds": "Bcrypt 轮数",
+      "accessTokenExpiry": "访问令牌有效期",
+      "refreshTokenExpiry": "刷新令牌有效期",
+      "authRateLimit": "认证速率限制",
+      "apiRateLimit": "API 速率限制"
+    },
+    "smtpStatus": {
+      "configured": "已配置",
+      "notConfigured": "未配置"
+    },
+    "uptime": {
+      "daysHoursMins": "{{days}} 天 {{hours}} 小时 {{mins}} 分",
+      "hoursMins": "{{hours}} 小时 {{mins}} 分",
+      "mins": "{{mins}} 分"
+    },
+    "footer": {
+      "autoRefresh": "每 30 秒自动刷新"
+    }
+  },
+  "settingsPage": {
+    "loading": "正在加载设置...",
+    "header": {
+      "title": "组织设置",
+      "subtitle": "管理公司信息、部门和地点。"
+    },
+    "company": {
+      "title": "公司信息",
+      "editTitle": "编辑公司信息"
+    },
+    "actions": {
+      "edit": "编辑",
+      "cancel": "取消",
+      "add": "添加",
+      "saveChanges": "保存更改"
+    },
+    "fields": {
+      "name": "名称",
+      "legalName": "法定名称",
+      "email": "电子邮箱",
+      "phone": "电话",
+      "country": "国家/地区",
+      "state": "省/州",
+      "city": "城市",
+      "timezone": "时区",
+      "language": "语言"
+    },
+    "form": {
+      "selectTimezone": "选择时区",
+      "selectTimezoneRequired": "选择时区 *",
+      "selectCountry": "选择国家/地区",
+      "noTimezone": "无时区"
+    },
+    "validation": {
+      "email": "请输入有效的电子邮箱地址（例如 user@example.com）。",
+      "city": "城市只能包含字母、空格和连字符。",
+      "state": "省/州只能包含字母、空格和连字符。",
+      "timezoneRequired": "时区为必填项。"
+    },
+    "errors": {
+      "updateOrg": "更新失败，请重试。",
+      "addDepartment": "添加部门失败。",
+      "renameDepartment": "重命名部门失败。",
+      "deleteDepartment": "删除部门失败。",
+      "addLocation": "添加地点失败。",
+      "updateLocation": "更新地点失败。",
+      "deleteLocation": "删除地点失败。"
+    },
+    "departments": {
+      "namePlaceholder": "部门名称",
+      "renameTitle": "重命名部门",
+      "deleteTitle": "删除部门",
+      "title_one": "部门（{{count}}）",
+      "title_other": "部门（{{count}}）"
+    },
+    "locations": {
+      "namePlaceholder": "地点名称",
+      "editTitle": "编辑地点",
+      "deleteTitle": "删除地点",
+      "title_one": "地点（{{count}}）",
+      "title_other": "地点（{{count}}）"
+    },
+    "rowActions": {
+      "save": "保存",
+      "cancel": "取消"
+    }
+  },
+  "subscriptionsPage": {
+    "loading": "正在加载订阅...",
+    "header": {
+      "title": "订阅",
+      "subtitle": "管理您的模块订阅和账单。"
+    },
+    "moduleFallback": "模块",
+    "billing": {
+      "viewInvoicesLink": "查看详细发票和付款记录",
+      "monthlyCostHeading": "月度费用",
+      "perMonthSuffix": " /月"
+    },
+    "toast": {
+      "updated": "订阅更新成功",
+      "cancelled": "订阅已取消"
+    },
+    "card": {
+      "tooltip": {
+        "edit": "编辑订阅",
+        "cancel": "取消订阅"
+      },
+      "field": {
+        "plan": "套餐",
+        "seats": "席位",
+        "pricePerSeat": "每席位价格",
+        "billingCycle": "计费周期"
+      },
+      "seatsFull": "（已满）"
+    },
+    "trial": {
+      "expired": "试用已过期——即将转为正式订阅。首张发票将于今日开具。",
+      "endsIn_one": "试用将在 {{count}} 天后结束（{{date}}）",
+      "endsIn_other": "试用将在 {{count}} 天后结束（{{date}}）"
+    },
+    "cancelModal": {
+      "title": "取消订阅？",
+      "body": "此操作将取消订阅并撤销所有已分配席位的访问权限。此操作无法撤销。",
+      "keep": "保留",
+      "confirm": "是的，取消",
+      "confirming": "正在取消..."
+    },
+    "editModal": {
+      "title": "编辑订阅",
+      "planTierLabel": "套餐等级",
+      "totalSeatsLabel": "席位总数",
+      "currentlyUsing": "当前使用 {{seats}} 个席位",
+      "cannotReduceBelow": "无法减少到 {{seats}}（使用中）以下",
+      "billingCycleLabel": "计费周期",
+      "changesHeading": "变更：",
+      "change": {
+        "plan": "套餐：{{from}} → {{to}}",
+        "seats": "席位：{{from}} → {{to}}",
+        "cycle": "周期：{{from}} → {{to}}"
+      },
+      "trialWarning": {
+        "title": "⚠️ 此操作将结束您的免费试用",
+        "reason": {
+          "seats": "增加席位",
+          "tier": "升级您的套餐等级",
+          "cycle": "切换到更长的计费周期"
+        },
+        "body": "将在试用期间立即激活订阅。系统将生成首个计费周期的发票，并于今日到期。"
+      },
+      "cancel": "取消",
+      "save": "保存更改",
+      "saving": "正在保存..."
+    },
+    "planTier": {
+      "basic": "基础版",
+      "professional": "专业版",
+      "enterprise": "企业版",
+      "free": "免费版"
+    },
+    "billingCycle": {
+      "monthly": "按月",
+      "quarterly": "按季度",
+      "semi_annual": "半年",
+      "annual": "按年"
+    },
+    "status": {
+      "active": "有效",
+      "trial": "试用",
+      "cancelled": "已取消",
+      "expired": "已过期"
+    }
+  },
+  "customFieldsSettings": {
+    "page": {
+      "title": "自定义字段",
+      "subtitle": "为员工、部门及其他实体定义自定义数据字段"
+    },
+    "actions": {
+      "addField": "添加字段"
+    },
+    "entityType": {
+      "employee": "员工",
+      "department": "部门",
+      "location": "地点",
+      "project": "项目",
+      "document": "文档"
+    },
+    "fieldType": {
+      "text": "文本",
+      "textarea": "文本区",
+      "number": "数字",
+      "decimal": "小数",
+      "date": "日期",
+      "datetime": "日期和时间",
+      "dropdown": "下拉菜单",
+      "multi_select": "多选",
+      "checkbox": "复选框",
+      "email": "电子邮件",
+      "phone": "电话",
+      "url": "网址",
+      "file": "文件"
+    },
+    "form": {
+      "editTitle": "编辑字段",
+      "newTitle": "新建字段",
+      "hidePreview": "隐藏预览",
+      "preview": "预览",
+      "fieldNameLabel": "字段名称 *",
+      "fieldNamePlaceholder": "例如：T恤尺码",
+      "fieldTypeLabel": "字段类型 *",
+      "sectionLabel": "分区",
+      "sectionPlaceholder": "自定义字段",
+      "placeholderLabel": "占位提示",
+      "defaultValueLabel": "默认值",
+      "validationRegexLabel": "校验正则表达式",
+      "minValueLabel": "最小值",
+      "maxValueLabel": "最大值",
+      "helpTextLabel": "帮助文本",
+      "helpTextPlaceholder": "向用户显示的工具提示或说明",
+      "optionsLabel": "选项",
+      "optionInputPlaceholder": "输入选项后按回车键",
+      "addOption": "添加",
+      "requiredLabel": "必填",
+      "searchableLabel": "可搜索",
+      "fieldPreviewHeading": "字段预览",
+      "saving": "保存中…",
+      "updateField": "更新字段",
+      "createField": "创建字段",
+      "cancel": "取消"
+    },
+    "error": {
+      "saveFailed": "字段保存失败，请重试。"
+    },
+    "list": {
+      "loading": "正在加载字段…",
+      "emptyTitle": "尚未为{{name}}定义自定义字段。",
+      "emptyHint": "点击“添加字段”创建您的第一个自定义字段。"
+    },
+    "table": {
+      "fieldName": "字段名称",
+      "key": "键",
+      "type": "类型",
+      "required": "必填",
+      "searchable": "可搜索",
+      "actions": "操作",
+      "yes": "是",
+      "no": "否",
+      "editAria": "编辑字段",
+      "deleteAria": "删除字段",
+      "optionCount_one": "（{{count}} 个选项）",
+      "optionCount_other": "（{{count}} 个选项）"
+    },
+    "confirm": {
+      "titleNamed": "停用字段“{{name}}”？",
+      "title": "停用字段？",
+      "description": "现有值将会保留。",
+      "confirmText": "停用"
+    },
+    "preview": {
+      "defaultFieldName": "字段名称",
+      "enterValue": "请输入{{name}}",
+      "enterValueFallback": "值",
+      "selectOption": "请选择{{name}}…",
+      "selectOptionFallback": "选项",
+      "noOptions": "未定义任何选项",
+      "checkboxFallback": "复选框"
+    }
+  },
+  "helpdeskDashboard": {
+    "loading": "正在加载服务台仪表板...",
+    "title": "服务台仪表板",
+    "subtitle": "HR 服务台工单及 SLA 绩效概览。",
+    "viewAllTickets": "查看所有工单",
+    "stats": {
+      "totalOpen": "待处理总数",
+      "inProgress": "处理中",
+      "overdue": "已逾期（违反 SLA）",
+      "resolvedToday": "今日已解决"
+    },
+    "sla": {
+      "compliance": "SLA 达成率",
+      "resolvedWithinSla": "在 SLA 内解决的工单"
+    },
+    "metrics": {
+      "avgResolutionTime": "平均解决时长",
+      "hours": "小时"
+    },
+    "satisfaction": {
+      "title": "满意度评分",
+      "notAvailable": "不适用",
+      "ratingCount_one": "{{count}} 条评分",
+      "ratingCount_other": "{{count}} 条评分"
+    },
+    "categoryBreakdown": {
+      "title": "按类别统计工单"
+    },
+    "recentTickets": {
+      "title": "最近工单"
+    },
+    "emptyState": {
+      "noTickets": "暂无工单"
+    },
+    "category": {
+      "leave": "休假",
+      "payroll": "薪资",
+      "benefits": "福利",
+      "it": "IT",
+      "facilities": "后勤设施",
+      "onboarding": "入职",
+      "policy": "政策",
+      "general": "常规"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "urgent": "紧急"
+    },
+    "status": {
+      "open": "待处理",
+      "in_progress": "处理中",
+      "awaiting_response": "等待回复",
+      "resolved": "已解决",
+      "closed": "已关闭",
+      "reopened": "已重新打开"
+    }
+  },
+  "ticketDetail": {
+    "loading": "正在加载工单...",
+    "backToTickets": "返回工单列表",
+    "slaBreached": "SLA 已违约",
+    "raisedBy": "提交人：{{name}}",
+    "created": "创建时间：{{date}}",
+    "assignedTo": "负责人：{{name}}",
+    "slaDeadlines": "SLA 截止时间",
+    "firstResponse": "首次响应：",
+    "responded": "已于 {{date}} 响应",
+    "due": "截止 {{date}}",
+    "resolution": "解决时限：",
+    "resolved": "已于 {{date}} 解决",
+    "action": {
+      "assign": "分配",
+      "resolve": "标记已解决",
+      "close": "关闭",
+      "reopen": "重新打开",
+      "rateService": "评价服务"
+    },
+    "assign": {
+      "selectUser": "选择要分配的用户..."
+    },
+    "rating": {
+      "prompt": "您对处理结果的满意度如何？",
+      "feedbackPlaceholder": "补充反馈（可选）",
+      "submit": "提交评价"
+    },
+    "satisfaction": "满意度：",
+    "conversation": "对话记录",
+    "internalNote": "内部备注",
+    "noComments": "暂无评论。在下方开始对话。",
+    "replyPlaceholder": "输入回复...",
+    "internalNoteToggle": "内部备注（员工不可见）",
+    "sending": "发送中...",
+    "sendReply": "发送回复",
+    "toast": {
+      "resolveSuccess": "工单已标记为已解决。",
+      "resolveError": "标记工单已解决失败。",
+      "closeSuccess": "工单已关闭。",
+      "closeError": "关闭工单失败。",
+      "reopenSuccess": "工单已重新打开。",
+      "reopenError": "重新打开工单失败。"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "urgent": "紧急"
+    },
+    "status": {
+      "open": "待处理",
+      "in_progress": "处理中",
+      "awaiting_response": "等待回复",
+      "resolved": "已解决",
+      "closed": "已关闭",
+      "reopened": "已重新打开"
+    },
+    "category": {
+      "general": "一般",
+      "technical": "技术",
+      "hr": "人力资源",
+      "payroll": "薪资",
+      "it": "IT",
+      "facilities": "后勤",
+      "other": "其他"
+    }
+  },
+  "myFeedback": {
+    "page": {
+      "title": "我的反馈",
+      "subtitle": "查看您匿名提交的反馈的状态以及人力资源部的任何回复。"
+    },
+    "status": {
+      "new": "新建",
+      "acknowledged": "已确认",
+      "under_review": "审核中",
+      "resolved": "已解决",
+      "archived": "已归档"
+    },
+    "category": {
+      "workplace": "工作场所",
+      "management": "管理",
+      "process": "流程",
+      "culture": "文化",
+      "harassment": "骚扰",
+      "safety": "安全",
+      "suggestion": "建议",
+      "other": "其他"
+    },
+    "empty": {
+      "title": "尚未提交任何反馈",
+      "description": "向人力资源部匿名分享您的想法。",
+      "submitCta": "提交反馈"
+    },
+    "card": {
+      "urgentBadge": "紧急",
+      "editButton": "编辑",
+      "hrResponseLabel": "人力资源部回复",
+      "respondedOn": "回复于 {{date}}"
+    },
+    "editModal": {
+      "title": "编辑反馈",
+      "categoryLabel": "类别",
+      "subjectLabel": "主题",
+      "messageLabel": "内容",
+      "markUrgent": "标记为紧急",
+      "cancel": "取消",
+      "save": "保存更改",
+      "saving": "保存中…"
+    },
+    "error": {
+      "updateFailed": "更新反馈失败"
+    },
+    "pagination": {
+      "summary": "第 {{page}} 页，共 {{totalPages}} 页（共 {{total}} 条）",
+      "previous": "上一页",
+      "next": "下一页"
+    }
+  },
+  "feedbackDashboard": {
+    "title": "反馈仪表板",
+    "subtitle": "匿名员工反馈概览。",
+    "loading": "正在加载仪表板...",
+    "stats": {
+      "totalFeedback": "反馈总数",
+      "urgentItems": "紧急事项",
+      "responseRate": "响应率",
+      "newUnread": "新增／未读"
+    },
+    "sections": {
+      "byCategory": "按类别",
+      "sentimentDistribution": "情绪分布",
+      "byStatus": "按状态",
+      "recentFeedback": "最近反馈"
+    },
+    "empty": {
+      "noData": "暂无数据。",
+      "noFeedback": "暂无反馈。"
+    },
+    "status": {
+      "new": "新增",
+      "acknowledged": "已确认",
+      "under_review": "审核中",
+      "resolved": "已解决",
+      "archived": "已归档"
+    },
+    "category": {
+      "workplace": "工作场所",
+      "management": "管理",
+      "process": "流程",
+      "culture": "文化",
+      "harassment": "骚扰",
+      "safety": "安全",
+      "suggestion": "建议",
+      "other": "其他"
+    },
+    "sentiment": {
+      "positive": "正面",
+      "neutral": "中性",
+      "negative": "负面",
+      "unset": "未设置"
+    }
+  },
+  "submitFeedback": {
+    "page": {
+      "title": "提交反馈"
+    },
+    "success": {
+      "title": "反馈已提交",
+      "description": "您的反馈已匿名提交。您的身份不会被存储，任何人都无法查看。您可以在\"我的反馈\"页面查看反馈状态。",
+      "submitAnother": "再次提交"
+    },
+    "anonymousBanner": {
+      "title": "您的反馈完全匿名",
+      "description": "您的身份经过哈希处理，无法追溯到您本人。人力资源部门可以看到反馈内容，但绝不会看到您的姓名或电子邮箱。"
+    },
+    "field": {
+      "category": "类别",
+      "subject": "主题",
+      "message": "内容",
+      "subjectPlaceholder": "简要概述您的反馈",
+      "messagePlaceholder": "请详细描述您的反馈……",
+      "markUrgent": "标记为紧急"
+    },
+    "action": {
+      "submit": "匿名提交",
+      "submitting": "提交中……"
+    },
+    "error": {
+      "submitFailed": "反馈提交失败，请重试。"
+    },
+    "category": {
+      "workplace": "工作环境",
+      "management": "管理",
+      "process": "流程",
+      "culture": "文化",
+      "harassment": "骚扰",
+      "safety": "安全",
+      "suggestion": "建议",
+      "other": "其他"
+    }
+  },
+  "assetDetail": {
+    "loading": "正在加载资产详情...",
+    "status": {
+      "available": "可用",
+      "assigned": "已分配",
+      "in_repair": "维修中",
+      "retired": "已退役",
+      "lost": "已丢失",
+      "damaged": "已损坏"
+    },
+    "condition": {
+      "new": "全新",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "较差"
+    },
+    "action": {
+      "created": "已创建",
+      "assigned": "已分配",
+      "returned": "已归还",
+      "sent_to_repair": "已送修",
+      "repaired": "已修复",
+      "retired": "已退役",
+      "lost": "已丢失",
+      "found": "已找回",
+      "damaged": "已损坏",
+      "updated": "已更新"
+    },
+    "buttons": {
+      "edit": "编辑",
+      "assign": "分配",
+      "return": "归还",
+      "sendForRepair": "送修",
+      "repairComplete": "维修完成",
+      "retire": "退役",
+      "reportLost": "报告丢失",
+      "markFound": "标记找回"
+    },
+    "info": {
+      "heading": "资产信息",
+      "assetTag": "资产标签",
+      "category": "类别",
+      "uncategorized": "未分类",
+      "serialNumber": "序列号",
+      "brand": "品牌",
+      "model": "型号",
+      "location": "位置",
+      "purchaseDate": "购买日期",
+      "purchaseCost": "购买成本",
+      "warrantyExpiry": "保修到期",
+      "expiredSuffix": "（已过期）",
+      "description": "描述",
+      "notes": "备注"
+    },
+    "assignment": {
+      "heading": "当前分配",
+      "assignedTo": "分配给",
+      "assignedAt": "分配时间",
+      "assignedBy": "分配人"
+    },
+    "history": {
+      "heading": "历史记录",
+      "to": "至：{{name}}",
+      "from": "来自：{{name}}",
+      "empty": "暂无历史记录",
+      "deleteTitle": "删除历史记录"
+    },
+    "assignModal": {
+      "title": "分配资产",
+      "assignToLabel": "分配给 *",
+      "selectEmployee": "选择员工",
+      "notesLabel": "备注",
+      "cancel": "取消",
+      "submit": "分配",
+      "submitting": "正在分配..."
+    },
+    "returnModal": {
+      "title": "归还资产",
+      "conditionLabel": "归还时状况",
+      "notesLabel": "备注",
+      "cancel": "取消",
+      "submit": "归还资产",
+      "submitting": "正在归还..."
+    },
+    "confirm": {
+      "retire": {
+        "title": "退役此资产？",
+        "body": "退役资产会将其移出有效库存。以往的分配记录仍会保留，但该资产将无法再被分配。",
+        "confirmLabel": "退役资产"
+      },
+      "lost": {
+        "title": "将资产报告为丢失？",
+        "body": "此操作会将该资产标记为丢失并记录到审计历史中。稍后您可在资产详情页将其标记为找回。",
+        "confirmLabel": "报告丢失"
+      },
+      "found": {
+        "title": "将资产标记为找回？",
+        "body": "此操作会将该资产恢复为有效库存中的可用状态，以便重新分配。",
+        "confirmLabel": "标记找回"
+      },
+      "repairStart": {
+        "title": "将资产送修？",
+        "bodyAssigned": "此操作会取消该资产的分配并将其转为“维修中”。当前持有人仍会记录在历史中。",
+        "bodyDefault": "此操作会将该资产转为“维修中”。在维修完成前，该资产将无法分配。",
+        "confirmLabel": "送修"
+      },
+      "repairComplete": {
+        "title": "将维修标记为完成？",
+        "body": "此操作会将该资产恢复为有效库存中的可用状态，以便重新分配。",
+        "confirmLabel": "标记为已修复"
+      },
+      "cancel": "取消",
+      "working": "处理中..."
+    },
+    "editModal": {
+      "title": "编辑资产",
+      "nameLabel": "名称 *",
+      "categoryLabel": "类别",
+      "uncategorized": "未分类",
+      "serialNumberLabel": "序列号",
+      "brandLabel": "品牌",
+      "modelLabel": "型号",
+      "conditionLabel": "状况",
+      "purchaseDateLabel": "购买日期",
+      "purchaseCostLabel": "购买成本",
+      "purchaseCostHint": "金额（以派萨为单位）。",
+      "warrantyExpiryLabel": "保修到期",
+      "locationLabel": "位置",
+      "descriptionLabel": "描述",
+      "notesLabel": "备注",
+      "cancel": "取消",
+      "save": "保存更改",
+      "saving": "正在保存..."
+    },
+    "conditionOptions": {
+      "new": "全新",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "较差"
+    },
+    "deleteHistory": {
+      "title": "删除历史记录？",
+      "body": "此操作仅删除这一条日志记录。资产的当前状态保持不变——以往的分配或操作不会被撤销。",
+      "cancel": "取消",
+      "confirm": "删除记录",
+      "deleting": "正在删除..."
+    },
+    "errors": {
+      "updateFailed": "更新资产失败",
+      "deleteHistoryFailed": "删除历史记录失败",
+      "warrantyBeforePurchase": "保修到期日期不能早于购买日期。",
+      "retireFailed": "退役资产失败",
+      "reportLostFailed": "报告资产丢失失败",
+      "markFoundFailed": "标记资产找回失败",
+      "sendToRepairFailed": "将资产送修失败",
+      "completeRepairFailed": "完成维修失败"
+    }
+  },
+  "assetCategories": {
+    "header": {
+      "title": "资产类别",
+      "subtitle": "按类型整理资产"
+    },
+    "actions": {
+      "addCategory": "添加类别",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "list": {
+      "loading": "正在加载类别...",
+      "empty": "暂无类别。创建您的第一个类别。"
+    },
+    "table": {
+      "name": "名称",
+      "description": "描述",
+      "actions": "操作"
+    },
+    "form": {
+      "editTitle": "编辑类别",
+      "newTitle": "新建类别",
+      "nameLabel": "名称 *",
+      "namePlaceholder": "例如：笔记本电脑、显示器、手机",
+      "descriptionLabel": "描述",
+      "cancel": "取消",
+      "update": "更新",
+      "create": "创建"
+    },
+    "delete": {
+      "title": "停用类别？",
+      "message": "停用 {{name}}？已标记此类别的现有资产将保留标记，但在恢复之前无法将新资产归入此类别。",
+      "cancel": "取消",
+      "confirm": "停用",
+      "inProgress": "正在停用..."
+    },
+    "errors": {
+      "deactivateFailed": "停用类别失败"
+    },
+    "toast": {
+      "created": "已添加类别",
+      "updated": "已更新类别",
+      "deactivated": "已停用类别",
+      "createFailed": "添加类别失败",
+      "updateFailed": "更新类别失败"
+    }
+  },
+  "myAssets": {
+    "page": {
+      "title": "我的资产",
+      "subtitle": "分配给您的设备和资产"
+    },
+    "empty": {
+      "title": "尚未为您分配任何资产",
+      "description": "当您的组织为您分配设备后，将会在此处显示。"
+    },
+    "card": {
+      "serialNumber": "序列号：{{serial}}",
+      "assigned": "分配日期 {{date}}",
+      "warranty": "保修期至：{{date}}",
+      "warrantyExpiredSuffix": "（已过期）"
+    },
+    "condition": {
+      "new": "全新",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "较差"
+    }
+  },
+  "apiKeysCard": {
+    "emptyDate": "—",
+    "status": {
+      "revoked": "已撤销",
+      "expired": "已过期",
+      "active": "有效"
+    },
+    "toast": {
+      "createError": "创建 API 密钥失败",
+      "copyError": "无法复制，请手动选择并复制",
+      "revokeSuccess": "API 密钥已撤销",
+      "revokeError": "撤销密钥失败"
+    },
+    "confirm": {
+      "revoke": "撤销\"{{name}}\"？任何正在使用它的集成将立即停止工作。"
+    },
+    "heading": "API 密钥",
+    "newKeyButton": "新建密钥",
+    "description": "生成用于以编程方式访问 EOR API 的密钥。一个密钥可同时用于 EOR 和 Payroll 模块，并继承创建它的管理员所拥有的权限。",
+    "howTo": {
+      "title": "如何使用您的 API 密钥",
+      "intro": "生成的密钥是<strong>Bearer 令牌</strong>。请在每个 API 请求的 <code>Authorization</code> 标头中发送它——与已登录的会话令牌完全相同：",
+      "bulletBothSystems": "<strong>两个系统通用。</strong>同一令牌可对 EOR API 和 Payroll 模块 API 进行身份验证——无需单独登录或交换令牌。",
+      "bulletInheritsPermissions": "<strong>继承您的权限。</strong>密钥只能执行创建它的管理员所能执行的操作。它始终反映该管理员的当前角色——更改角色后，密钥的访问权限也随之变化。",
+      "bulletShownOnce": "<strong>仅显示一次。</strong>完整密钥在创建时仅显示一次。请将其妥善保存在安全的地方（如密钥管理器）——我们仅保留哈希副本，无法再次显示。",
+      "bulletRevocable": "<strong>可撤销、可过期。</strong>可设置可选的过期时间，或随时撤销密钥。已撤销或已过期的密钥将在所有地方立即停止工作。请像对待密码一样对待密钥——任何持有它的人都可以以您的权限执行操作。"
+    },
+    "reveal": {
+      "warning": "请立即复制此密钥——它将不会再次显示。",
+      "copied": "已复制",
+      "copy": "复制",
+      "dismissAria": "关闭",
+      "bearerHint": "在 Authorization 标头中将其用作 Bearer 令牌："
+    },
+    "form": {
+      "nameLabel": "密钥名称",
+      "namePlaceholder": "例如：考勤导出",
+      "expiresLabel": "有效期（天）",
+      "expiresPlaceholder": "永不过期",
+      "generating": "生成中…",
+      "generate": "生成密钥",
+      "cancel": "取消"
+    },
+    "list": {
+      "loading": "正在加载密钥…",
+      "empty": "暂无 API 密钥。"
+    },
+    "table": {
+      "name": "名称",
+      "key": "密钥",
+      "status": "状态",
+      "lastUsed": "最近使用",
+      "expires": "过期时间",
+      "created": "创建时间",
+      "neverExpires": "永不过期"
+    },
+    "revokeAction": "撤销"
+  },
+  "dateRangePicker": {
+    "preset": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "last7": "最近 7 天",
+      "last30": "最近 30 天",
+      "thisMonth": "本月",
+      "lastMonth": "上月",
+      "customRange": "自定义范围"
+    },
+    "trigger": {
+      "placeholder": "选择日期范围"
+    },
+    "dialog": {
+      "ariaLabel": "选择日期范围"
+    },
+    "footer": {
+      "empty": "—"
+    },
+    "action": {
+      "clear": "清除",
+      "cancel": "取消",
+      "apply": "应用"
+    }
+  },
+  "navSection": {
+    "countBadge": {
+      "overflow": "99+"
+    }
+  },
+  "assetBulkUpload": {
+    "header": {
+      "title": "从 CSV / Excel 批量导入资产"
+    },
+    "actions": {
+      "downloadTemplate": "下载模板",
+      "close": "关闭",
+      "cancel": "取消"
+    },
+    "upload": {
+      "requiredHint": "必填：<0>name</0>。其他列为可选。",
+      "dropzoneTitle": "将 CSV 或 Excel 文件拖放到此处",
+      "dropzoneSubtitle": "或点击浏览",
+      "tipsHeading": "提示：",
+      "tips": {
+        "purchaseCost": "<0>purchase_cost</0> 为以派萨为单位的金额（例如 150000 表示 ₹1,500）。",
+        "conditionStatus": "<0>condition_status</0> 必须为以下之一：new、good、fair、poor。",
+        "categoryAutoCreate": "未知的 <0>category_name</0> 值将自动创建。",
+        "dateFormats": "日期支持 YYYY-MM-DD 格式或 Excel 日期单元格。"
+      }
+    },
+    "importing": {
+      "message": "正在导入资产……请稍候。"
+    },
+    "done": {
+      "completeTitle": "导入完成",
+      "rowError": "第 {{row}} 行：",
+      "emptyFile": "上传的文件中未找到任何数据行。",
+      "importedCount_one": "成功导入 {{count}} 项资产。",
+      "importedCount_other": "成功导入 {{count}} 项资产。",
+      "createdCategoriesTitle_one": "已创建新类别（{{count}}）：",
+      "createdCategoriesTitle_other": "已创建新类别（{{count}}）：",
+      "skippedRows_one": "已跳过 {{count}} 行出错记录",
+      "skippedRows_other": "已跳过 {{count}} 行出错记录"
+    },
+    "errors": {
+      "bulkImportFailed": "批量导入失败"
+    }
+  },
+  "customRolesField": {
+    "label": "自定义角色",
+    "loading": "加载中…",
+    "emptyReadonly": "未分配自定义角色",
+    "helpText": "在此用户主要角色的基础上授予更精细权限的附加角色。管理角色请前往",
+    "helpTextLink": "设置 → 角色与权限",
+    "removeAria": "移除 {{name}}",
+    "placeholderEmpty": "点击以分配自定义角色…",
+    "placeholderMore": "添加其他角色…",
+    "noneToAssign": "没有可分配的自定义角色。请在“设置 → 角色与权限”中创建。",
+    "noMatches": "无匹配的角色",
+    "error": {
+      "requestFailed": "请求失败"
+    },
+    "assignedCount_one": "(已分配 {{count}} 个)",
+    "assignedCount_other": "(已分配 {{count}} 个)",
+    "permissionCount_one": "{{count}} 项权限",
+    "permissionCount_other": "{{count}} 项权限"
+  },
+  "viewModeToggle": {
+    "myView": "我的视图",
+    "adminView": "管理员视图",
+    "myViewTitle": "个人自助服务视图",
+    "adminViewTitle": "管理员视图 — 仅显示您的自定义角色权限已解锁的项目"
+  },
+  "aiBadge": {
+    "label": "AI 驱动"
+  },
+  "celebrations": {
+    "title": "庆祝",
+    "subtitle": "公司员工即将到来的生日和工作周年纪念。",
+    "birthdays": "生日",
+    "anniversaries": "周年纪念",
+    "today": "今天",
+    "filterAll": "全部",
+    "todaysCelebrations": "今日庆祝",
+    "thisMonth": "本月",
+    "upcoming": "即将到来",
+    "upcomingRange": "未来 30 天",
+    "happyBirthday": "生日快乐！🎂",
+    "yearsToday": "今天{{count}}周年 🏆",
+    "birthday": "生日",
+    "yearsAnniversary": "{{years}}工作周年",
+    "tomorrow": "明天",
+    "inDays": "{{count}}天后",
+    "emptyTitle": "暂无即将到来的庆祝",
+    "emptyHint": "未来30天内的员工生日和工作周年纪念将显示在此处。",
+    "noUpcomingTitle": "本月没有更多",
+    "noUpcomingHint": "未来30天内没有其他庆祝活动。",
+    "noneToday": "今天没有庆祝活动",
+    "noneTodayHint": "查看下方本月即将到来的庆祝。"
+  },
+  "theme": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "系统"
+  }
+}

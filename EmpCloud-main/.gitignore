@@ -1,0 +1,39 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+coverage/
+.turbo/
+# TypeScript incremental build cache. Per-machine artifact — when committed
+# it tells `tsc` "everything is up to date" on whatever box pulls it,
+# causing the compiler to skip emit and ship stale dist/. Real cause of
+# the recurring "Property X does not exist on type AuditAction" errors
+# during prod deploys.
+*.tsbuildinfo
+keys/*.pem
+keys/*.key
+**/keys/*.pem
+**/keys/*.key
+*.pem
+*.key
+uploads/
+
+.deployment.env
+*.deployment.env
+
+# Screenshots and test artifacts
+screenshots/
+e2e/screenshots/
+testing/screenshots/
+test-artifacts/
+test-screenshots/
+*.png
+!packages/server/public/*.png
+packages/server/logs/
+
+# Claude Code agent worktrees / local settings (never commit)
+.claude/worktrees/
+.claude/settings.local.json

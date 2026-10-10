@@ -1,0 +1,181 @@
+import { Link } from "react-router-dom";
+import { Fragment, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ChevronDown } from "lucide-react";
+import type { NavItem } from "./navigation.config";
+import { AiBadge } from "@/components/AiBadge";
+
+interface NavSectionProps {
+  label: string;
+  items: NavItem[];
+  location: { pathname: string };
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  activeClass?: string;
+  /** Live unread counts keyed by nav path (e.g. { "/messages": 3 }). */
+  unreadByPath?: Record<string, number>;
+}
+
+/** Small red count badge for a nav item (e.g. unread messages). */
+function CountBadge({ count }: { count: number }) {
+  const { t } = useTranslation();
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white">
+      {count > 99 ? t("navSection.countBadge.overflow") : count}
+    </span>
+  );
+}
+
+function isItemActive(item: NavItem, pathname: string, allItems: NavItem[]): boolean {
+  const isExact = pathname === item.path;
+  const isPrefix = pathname.startsWith(item.path + "/");
+  const hasMoreSpecificMatch = isPrefix && allItems.some(
+    (other) => other.path !== item.path && other.path.startsWith(item.path + "/") && (pathname === other.path || pathname.startsWith(other.path + "/"))
+  );
+  return item.path === "/"
+    ? pathname === "/"
+    : isExact || (isPrefix && !hasMoreSpecificMatch);
+}
+
+// Section headers are stored as English strings in navigation.config.ts
+// (e.g. "People & HR"). Localise them via `nav.section.<slug>` keys, falling
+// back to the raw English string so an unmapped section still renders.
+function sectionLabel(section: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  const slug = section
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const key = `nav.section.${slug}`;
+  const translated = t(key, { defaultValue: section });
+  return translated;
+}
+
+export function NavSection({ label, items, location, t, activeClass = "bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300", unreadByPath }: NavSectionProps) {
+  // Track the running section so a divider+label renders before the first
+  // surviving item of each new group (resilient to permission-filtered items).
+  let currentSection: string | undefined;
+  return (
+    <>
+      {label && (
+        <div className="text-xs uppercase text-muted-foreground mt-6 mb-2 px-3">{label}</div>
+      )}
+      {items.map((item) => {
+        let header: string | null = null;
+        if (item.section && item.section !== currentSection) {
+          header = item.section;
+          currentSection = item.section;
+        }
+        return (
+          <Fragment key={item.path}>
+            {header && (
+              <div className="mx-3 mb-1 mt-4 break-words border-t border-border pt-3 text-[10px] font-semibold uppercase leading-4 tracking-wider text-muted-foreground">
+                {sectionLabel(header, t)}
+              </div>
+            )}
+            {item.children ? (
+              <NestedNavItem item={item} location={location} activeClass={activeClass} />
+            ) : (
+              <NavLink item={item} location={location} activeClass={activeClass} allItems={items} unread={unreadByPath?.[item.path] ?? 0} />
+            )}
+          </Fragment>
+        );
+      })}
+    </>
+  );
+}
+
+function NavLink({
+  item,
+  location,
+  activeClass,
+  allItems = [],
+  indent = false,
+  unread = 0,
+}: {
+  item: NavItem;
+  location: { pathname: string };
+  activeClass: string;
+  allItems?: NavItem[];
+  indent?: boolean;
+  unread?: number;
+}) {
+  const { t } = useTranslation();
+  const Icon = item.icon;
+  const isActive = isItemActive(item, location.pathname, allItems);
+  const label = item.i18nKey && t(item.i18nKey) !== item.i18nKey ? t(item.i18nKey) : item.label;
+  return (
+    <Link
+      to={item.path}
+      data-active={isActive}
+      aria-current={isActive ? "page" : undefined}
+      // #1816 — title attribute so the collapsed-sidebar icon-only state is
+      // discoverable via hover tooltip. No-op when expanded: native browsers
+      // suppress the tooltip if the link's visible text matches the title.
+      title={label}
+      className={`flex min-w-0 items-center gap-2 ${indent ? "pl-9 pr-3" : "px-3"} py-2 rounded-lg text-sm font-medium transition-colors ${
+        isActive
+          ? activeClass
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      }`}
+    >
+      <Icon aria-hidden="true" className={`${indent ? "h-4 w-4" : "h-5 w-5"} flex-shrink-0`} />
+      <span className="min-w-0 flex-1 whitespace-normal leading-5">{label}</span>
+      {item.badge && <AiBadge label={item.badge} />}
+      <CountBadge count={unread} />
+    </Link>
+  );
+}
+
+function NestedNavItem({
+  item,
+  location,
+  activeClass,
+
+}: {
+  item: NavItem;
+  location: { pathname: string };
+  activeClass: string;
+}) {
+  const { t } = useTranslation();
+  const Icon = item.icon;
+  const childActive = item.children?.some((child) =>
+    location.pathname === child.path || location.pathname.startsWith(child.path + "/")
+  );
+  const [open, setOpen] = useState(!!childActive);
+  const label = item.i18nKey && t(item.i18nKey) !== item.i18nKey ? t(item.i18nKey) : item.label;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        title={label}
+        className={`flex min-w-0 items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
+          childActive
+            ? activeClass
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        <Icon aria-hidden="true" className="h-5 w-5 flex-shrink-0" />
+        <span className="min-w-0 flex-1 whitespace-normal text-left leading-5">{label}</span>
+        <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && item.children && (
+        <div className="mt-0.5 space-y-0.5">
+          {item.children.map((child) => (
+            <NavLink
+              key={child.path}
+              item={child}
+              location={location}
+              activeClass={activeClass}
+              allItems={item.children!}
+              indent
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

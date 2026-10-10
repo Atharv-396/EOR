@@ -1,0 +1,36 @@
+# Auto-deploy to test server on push to main
+#
+# Required GitHub Secrets:
+#   DEPLOY_HOST     - Test server IP (163.227.174.141)
+#   DEPLOY_USER     - SSH username (empcloud-development)
+#   DEPLOY_PASSWORD - SSH password
+
+name: Deploy to Test Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          script: |
+            source ~/.nvm/nvm.sh
+            cd /home/empcloud-development/empcloud-projects/empcloud
+            git pull origin main
+            pnpm install --frozen-lockfile
+            cd packages/shared && pnpm build
+            cd ../client && npm run build
+            pm2 delete empcloud-server 2>/dev/null || true
+            rm -rf ~/.cache/tsx
+            pm2 start /home/empcloud-development/ecosystem.config.js --only empcloud-server
+            pm2 save

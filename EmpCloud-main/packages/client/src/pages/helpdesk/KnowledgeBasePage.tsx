@@ -1,0 +1,711 @@
+import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import RichTextEditor, { isRichTextEmpty } from "@/components/ui/RichTextEditor";
+import {
+  BookMarked,
+  Search,
+  Plus,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  ArrowLeft,
+  Star,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  Loader2,
+} from "lucide-react";
+
+const HR_ROLES = ["hr_admin", "org_admin", "super_admin"];
+
+const CATEGORIES = [
+  "leave", "payroll", "benefits", "it", "facilities", "onboarding", "policy", "general",
+];
+
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+// Display labels override the default Tailwind `capitalize` rendering for
+// values that aren't title-cased — "it" → "IT" because it's an acronym
+// (#1646). Translations live under kb.category.*; the English capitalised
+// value (or "IT") is the defaultValue so an unknown category still renders.
+const CATEGORY_LABELS: Record<string, string> = {
+  it: "IT",
+};
+function categoryLabel(c: string, t: TFn): string {
+  return t(`kb.category.${c}`, {
+    defaultValue: CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1),
+  });
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  leave: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
+  payroll: "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300",
+  benefits: "bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300",
+  it: "bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300",
+  facilities: "bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300",
+  onboarding: "bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300",
+  policy: "bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300",
+  general: "bg-muted text-muted-foreground",
+};
+
+export default function KnowledgeBasePage() {
+  const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const isHR = user && HR_ROLES.includes(user.role);
+  const queryClient = useQueryClient();
+
+  const [page, setPage] = useState(1);
+  const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [currentVote, setCurrentVote] = useState<null | boolean>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Form state
+  const [formTitle, setFormTitle] = useState("");
+  const [formContent, setFormContent] = useState("");
+  const [formCategory, setFormCategory] = useState("general");
+  const [formPublished, setFormPublished] = useState(true);
+  const [formFeatured, setFormFeatured] = useState(false);
+
+  function resetForm() {
+    setEditingId(null);
+    setFormTitle("");
+    setFormContent("");
+    setFormCategory("general");
+    setFormPublished(true);
+    setFormFeatured(false);
+  }
+
+  function startEdit(article: any) {
+    setEditingId(article.id);
+    setFormTitle(article.title);
+    setFormContent(article.content);
+    setFormCategory(article.category);
+    setFormPublished(!!article.is_published);
+    setFormFeatured(!!article.is_featured);
+    setSelectedArticle(null);
+    setShowForm(true);
+  }
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["kb-articles", page, category, search],
+    queryFn: () =>
+      api
+        .get("/helpdesk/kb", {
+          params: {
+            page,
+            per_page: 12,
+            ...(category && { category }),
+            ...(search && { search }),
+          },
+        })
+        .then((r) => r.data),
+  });
+
+  const createArticle = useMutation({
+    mutationFn: (data: object) =>
+      api.post("/helpdesk/kb", data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-articles"] });
+      setShowForm(false);
+      resetForm();
+    },
+  });
+
+  const updateArticle = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: object }) =>
+      api.put(`/helpdesk/kb/${id}`, data).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-articles"] });
+      setShowForm(false);
+      resetForm();
+    },
+  });
+
+  const deleteArticle = useMutation({
+    mutationFn: (id: number) =>
+      api.delete(`/helpdesk/kb/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-articles"] });
+      setDeleteTarget(null);
+      setDeleteError(null);
+      setSelectedArticle(null);
+    },
+    onError: (err: any) =>
+      setDeleteError(err?.response?.data?.error?.message || t("kb.deleteError")),
+  });
+
+  const rateArticle = useMutation({
+    mutationFn: ({ id, helpful }: { id: number; helpful: boolean }) =>
+      api.post(`/helpdesk/kb/${id}/helpful`, { helpful }).then((r) => r.data.data),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["kb-articles"] });
+      setHasVoted(true);
+      setCurrentVote(variables.helpful);
+      if (selectedArticle) {
+        setSelectedArticle(data);
+      }
+    },
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput);
+    setPage(1);
+  };
+
+  const handleSubmitForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      title: formTitle,
+      content: formContent,
+      category: formCategory,
+      is_published: formPublished,
+      is_featured: formFeatured,
+    };
+    if (editingId) {
+      await updateArticle.mutateAsync({ id: editingId, data: payload });
+    } else {
+      await createArticle.mutateAsync(payload);
+    }
+  };
+
+  const handleViewArticle = async (idOrSlug: string) => {
+    try {
+      const { data } = await api.get(`/helpdesk/kb/${idOrSlug}`);
+      setSelectedArticle(data.data);
+      // Check if user already rated this article
+      try {
+        const { data: ratingData } = await api.get(`/helpdesk/kb/${data.data.id}/my-rating`);
+        setHasVoted(ratingData.data?.rated || false);
+        setCurrentVote(
+          ratingData.data?.rated ? Boolean(ratingData.data.helpful) : null,
+        );
+      } catch {
+        setHasVoted(false);
+        setCurrentVote(null);
+      }
+    } catch {
+      // handle error silently
+    }
+  };
+
+  const articles = data?.data || [];
+  const meta = data?.meta;
+
+  // Article detail view
+  if (selectedArticle) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6 max-w-3xl">
+          <button
+            onClick={() => setSelectedArticle(null)}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> {t("kb.backToKb")}
+          </button>
+          {isHR && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => startEdit(selectedArticle)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] border border-border rounded-md text-muted-foreground hover:bg-muted"
+              >
+                <Pencil className="h-3.5 w-3.5" /> {t("kb.edit")}
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteTarget({ id: selectedArticle.id, title: selectedArticle.title });
+                  setDeleteError(null);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] border border-red-200 dark:border-red-900/50 rounded-md text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {t("kb.delete")}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-card rounded-lg border border-border p-8 max-w-3xl">
+          <div className="flex items-center gap-2 mb-3">
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded ${
+                CATEGORY_COLORS[selectedArticle.category] || "bg-muted text-muted-foreground"
+              }`}
+            >
+              {categoryLabel(selectedArticle.category, t)}
+            </span>
+            {Boolean(selectedArticle.is_featured) && (
+              <span className="flex items-center gap-1 text-xs font-medium text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-950/40 px-2 py-0.5 rounded">
+                <Star className="h-3 w-3" /> {t("kb.featured")}
+              </span>
+            )}
+          </div>
+
+          <h1 className="text-xl font-semibold tracking-tight text-foreground mb-2">
+            {selectedArticle.title}
+          </h1>
+
+          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-6">
+            <span>{t("kb.byAuthor", { author: selectedArticle.author_name })}</span>
+            <span>
+              {new Date(selectedArticle.created_at).toLocaleDateString()}
+            </span>
+            <span className="flex items-center gap-1">
+              <Eye className="h-3 w-3" /> {t("kb.viewsCount", { count: selectedArticle.view_count })}
+            </span>
+          </div>
+
+          {/* Content is sanitized server-side; render as HTML so authored
+              markup doesn't leak as literal <p>...</p> tags to readers
+              (#1634). whitespace-pre-wrap stays for legacy plaintext. */}
+          <div
+            className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap mb-8"
+            dangerouslySetInnerHTML={{ __html: selectedArticle.content || "" }}
+          />
+
+          <div className="border-t border-border pt-6">
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              {t("kb.wasHelpful")}
+            </p>
+            {hasVoted && (
+              <p className="text-xs text-muted-foreground mb-2">
+                {currentVote ? t("kb.ratedHelpful") : t("kb.ratedNotHelpful")}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() =>
+                  rateArticle.mutate({
+                    id: selectedArticle.id,
+                    helpful: true,
+                  })
+                }
+                disabled={rateArticle.isPending}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md border text-[13px] font-medium disabled:opacity-50 ${
+                  currentVote === true
+                    ? "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-200"
+                    : "border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40"
+                }`}
+              >
+                <ThumbsUp className="h-4 w-4" /> {t("kb.yes")} (
+                {selectedArticle.helpful_count})
+              </button>
+              <button
+                onClick={() =>
+                  rateArticle.mutate({
+                    id: selectedArticle.id,
+                    helpful: false,
+                  })
+                }
+                disabled={rateArticle.isPending}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md border text-[13px] font-medium disabled:opacity-50 ${
+                  currentVote === false
+                    ? "border-red-500 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-200"
+                    : "border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
+                }`}
+              >
+                <ThumbsDown className="h-4 w-4" /> {t("kb.no")} (
+                {selectedArticle.not_helpful_count})
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("kb.title")}</h1>
+          <p className="text-muted-foreground mt-1">
+            {t("kb.subtitle")}
+          </p>
+        </div>
+        {isHR && (
+          <button
+            onClick={() => {
+              if (showForm) {
+                setShowForm(false);
+                resetForm();
+              } else {
+                resetForm();
+                setShowForm(true);
+              }
+            }}
+            className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700"
+          >
+            <Plus className="h-4 w-4" /> {t("kb.newArticle")}
+          </button>
+        )}
+      </div>
+
+      {/* Create / Edit Article Form */}
+      {showForm && isHR && (
+        <div className="bg-card rounded-lg border border-border p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-foreground">
+              {editingId ? t("kb.editArticle") : t("kb.newKbArticle")}
+            </h2>
+            <button
+              onClick={() => { setShowForm(false); resetForm(); }}
+              className="p-1 rounded-md text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmitForm} className="space-y-4">
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">
+                {t("kb.titleLabel")}
+              </label>
+              <input
+                type="text"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                placeholder={t("kb.titlePlaceholder")}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[13px] font-medium text-muted-foreground mb-1">
+                  {t("kb.categoryLabel")}
+                </label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {categoryLabel(c, t)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end gap-4">
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={formPublished}
+                    onChange={(e) => setFormPublished(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  {t("kb.published")}
+                </label>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={formFeatured}
+                    onChange={(e) => setFormFeatured(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  {t("kb.featured")}
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">
+                {t("kb.contentLabel")}
+              </label>
+              <RichTextEditor
+                value={formContent}
+                onChange={setFormContent}
+                placeholder={t("kb.contentPlaceholder")}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); resetForm(); }}
+                className="px-4 py-2 text-[13px] border border-border rounded-md text-muted-foreground hover:bg-muted"
+              >
+                {t("kb.cancel")}
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  createArticle.isPending ||
+                  updateArticle.isPending ||
+                  !formTitle.trim() ||
+                  isRichTextEmpty(formContent)
+                }
+                className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <BookMarked className="h-4 w-4" />
+                {editingId
+                  ? updateArticle.isPending
+                    ? t("kb.updating")
+                    : t("kb.updateArticle")
+                  : createArticle.isPending
+                    ? t("kb.publishing")
+                    : t("kb.publishArticle")}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Search + Category Filter */}
+      <div className="bg-card rounded-lg border border-border p-4 mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <form
+            onSubmit={handleSearch}
+            className="flex items-center gap-2 flex-1 min-w-[200px]"
+          >
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("kb.searchPlaceholder")}
+                className="bg-card text-foreground w-full pl-9 pr-3 py-2 border border-border rounded-md text-[13px]"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-3 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+            >
+              {t("kb.search")}
+            </button>
+          </form>
+        </div>
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <button
+            onClick={() => {
+              setCategory("");
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
+              !category
+                ? "bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {t("kb.all")}
+          </button>
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => {
+                setCategory(c);
+                setPage(1);
+              }}
+              className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
+                category === c
+                  ? "bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {categoryLabel(c, t)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Articles Grid */}
+      {isLoading ? (
+        <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
+          {t("kb.loading")}
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
+          <BookMarked className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="text-lg font-medium text-muted-foreground mb-1">
+            {t("kb.noArticles")}
+          </p>
+          <p className="text-sm">
+            {search
+              ? t("kb.tryDifferentSearch")
+              : t("kb.emptyHint")}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {articles.map((a: any) => (
+            <div
+              key={a.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleViewArticle(a.slug || a.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleViewArticle(a.slug || a.id);
+                }
+              }}
+              className="relative text-left bg-card rounded-lg border border-border p-4 hover:border-brand-400 transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {isHR && (
+                <div className="absolute top-3 right-3 flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEdit(a);
+                    }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title={t("kb.editArticleTooltip")}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget({ id: a.id, title: a.title });
+                      setDeleteError(null);
+                    }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600"
+                    title={t("kb.deleteArticleTooltip")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className={`flex items-center gap-2 mb-2 ${isHR ? "pr-16" : ""}`}>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded ${
+                    CATEGORY_COLORS[a.category] || "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {categoryLabel(a.category, t)}
+                </span>
+                {Boolean(a.is_featured) && (
+                  <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                )}
+              </div>
+              <h3 className="text-sm font-semibold text-foreground mb-1 line-clamp-2">
+                {a.title}
+              </h3>
+              {/* Card previews strip HTML so the snippet stays readable
+                  even when authors saved their content with markup
+                  (#1634). The detail view above still renders the
+                  sanitized HTML. */}
+              <p className="text-xs text-muted-foreground line-clamp-3 mb-3">
+                {(a.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()}
+              </p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {a.view_count > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3 w-3" /> {a.view_count}
+                  </span>
+                )}
+                {a.helpful_count > 0 && (
+                  <span className="flex items-center gap-1">
+                    <ThumbsUp className="h-3 w-3" /> {a.helpful_count}
+                  </span>
+                )}
+                {(a.not_helpful_count ?? 0) > 0 && (
+                  <span className="flex items-center gap-1">
+                    <ThumbsDown className="h-3 w-3" /> {a.not_helpful_count}
+                  </span>
+                )}
+                <span>{a.author_name}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {meta && meta.total_pages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-muted-foreground">
+            {t("kb.pageOf", { page: meta.page, total_pages: meta.total_pages, total: meta.total })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="bg-card text-foreground flex items-center gap-1 px-3 py-1.5 text-[13px] border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4" /> {t("kb.previous")}
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= meta.total_pages}
+              className="bg-card text-foreground flex items-center gap-1 px-3 py-1.5 text-[13px] border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              {t("kb.next")} <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !deleteArticle.isPending && setDeleteTarget(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-card shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40">
+                  <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">{t("kb.deleteTitle")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <Trans i18nKey="kb.deleteBody" values={{ title: deleteTarget.title }} components={{ strong: <span className="font-medium text-muted-foreground" /> }} />
+                  </p>
+                </div>
+              </div>
+            </div>
+            {deleteError && (
+              <div className="mx-6 mb-4 rounded-md bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 rounded-b-lg border-t border-border bg-muted px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteArticle.isPending}
+                className="rounded-md border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground hover:bg-card disabled:opacity-50"
+              >
+                {t("kb.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteArticle.mutate(deleteTarget.id)}
+                disabled={deleteArticle.isPending}
+                className="flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteArticle.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> {t("kb.deleting")}
+                  </>
+                ) : (
+                  t("kb.delete")
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

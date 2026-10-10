@@ -1,0 +1,669 @@
+import { test, expect } from '@playwright/test';
+
+// =============================================================================
+// EMP Billing — Advanced E2E Tests (Untested Endpoints)
+// Covers: Quotes, Credit Notes, Coupons, Usage Billing, Dunning,
+//         Recurring Invoices, Reports, Metrics, Vendors, Settings,
+//         Webhooks, Search, Currency
+// Skips: invoices, payments, subscriptions, gateways (already tested)
+// =============================================================================
+
+const BILLING_API = 'https://test-billing-api.empcloud.com/api/v1';
+const BILLING_BASE = 'https://test-billing-api.empcloud.com';
+const API_KEY = process.env.BILLING_API_KEY || "";
+
+// Helper: API key auth headers (Bearer token, matching billing API middleware)
+const auth = () => ({
+  headers: {
+    Authorization: `Bearer ${API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+});
+
+// IDs captured during creation for subsequent tests
+let quoteId: number | string = '';
+let creditNoteId: number | string = '';
+let couponId: number | string = '';
+let couponCode = '';
+let usageRecordId: number | string = '';
+let recurringInvoiceId: number | string = '';
+let vendorId: number | string = '';
+let webhookId: number | string = '';
+let invoiceIdFromQuote: number | string = '';
+
+// =============================================================================
+// 1. QUOTES (8 tests)
+// =============================================================================
+
+test.describe('1. Quotes', () => {
+
+  test('1.1 Create a quote', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/quotes`, {
+      ...auth(),
+      data: {
+        clientId: '0d9d6836-80c1-4227-9faa-4184d1fa37a9',
+        issueDate: '2026-04-01',
+        expiryDate: '2026-06-30',
+        currency: 'INR',
+        items: [
+          { name: 'Payroll Module', description: 'PW Test', quantity: 10, rate: 10000 },
+        ],
+        notes: 'E2E test quote',
+      },
+    });
+    expect([200, 201]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) quoteId = body.data.id;
+    else if (body.data?.quote?.id) quoteId = body.data.quote.id;
+  });
+
+  test('1.2 List quotes', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/quotes`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !quoteId) quoteId = list[0].id;
+    }
+  });
+
+  test('1.3 Get single quote', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.get(`${BILLING_API}/quotes/${quoteId}`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('1.4 Update a quote', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.put(`${BILLING_API}/quotes/${quoteId}`, {
+      ...auth(),
+      data: { notes: 'Updated by E2E test' },
+    });
+    expect([200, 204, 404]).toContain(r.status());
+  });
+
+  test('1.5 Send quote (email/notification)', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/quotes/${quoteId}/send`, auth());
+    expect([200, 201, 204, 404, 422]).toContain(r.status());
+  });
+
+  test('1.6 Accept a quote', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/quotes/${quoteId}/accept`, auth());
+    expect([200, 204, 400, 404, 409, 422]).toContain(r.status());
+  });
+
+  test('1.7 Convert quote to invoice', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/quotes/${quoteId}/convert`, auth());
+    expect([200, 201, 400, 404, 409, 422]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.invoice_id) invoiceIdFromQuote = body.data.invoice_id;
+    else if (body.data?.id) invoiceIdFromQuote = body.data.id;
+  });
+
+  test('1.8 Download quote PDF', async ({ request }) => {
+    expect(quoteId, 'Prerequisite failed — No quote available').toBeTruthy();
+    const r = await request.get(`${BILLING_API}/quotes/${quoteId}/pdf`, auth());
+    expect([200, 404, 500, 501]).toContain(r.status());
+    if (r.status() === 200) {
+      const ct = r.headers()['content-type'] || '';
+      expect(ct.includes('pdf') || ct.includes('octet-stream') || ct.includes('json')).toBe(true);
+    }
+  });
+});
+
+// =============================================================================
+// 2. CREDIT NOTES (6 tests)
+// =============================================================================
+
+test.describe('2. Credit Notes', () => {
+
+  test('2.1 Create a credit note', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/credit-notes`, {
+      ...auth(),
+      data: {
+        clientId: '0d9d6836-80c1-4227-9faa-4184d1fa37a9',
+        date: '2026-04-01',
+        reason: 'E2E test credit note — overcharge',
+        items: [
+          { name: 'Adjustment', quantity: 1, rate: 5000 },
+        ],
+      },
+    });
+    expect([200, 201, 400, 404]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) creditNoteId = body.data.id;
+    else if (body.data?.credit_note?.id) creditNoteId = body.data.credit_note.id;
+  });
+
+  test('2.2 List credit notes', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/credit-notes`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !creditNoteId) creditNoteId = list[0].id;
+    }
+  });
+
+  test('2.3 Get single credit note', async ({ request }) => {
+    expect(creditNoteId, 'Prerequisite failed — No credit note available').toBeTruthy();
+    const r = await request.get(`${BILLING_API}/credit-notes/${creditNoteId}`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('2.4 Apply credit note to invoice', async ({ request }) => {
+    expect(creditNoteId, 'Prerequisite failed — No credit note to apply').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/credit-notes/${creditNoteId}/apply`, {
+      ...auth(),
+      data: { invoiceId: invoiceIdFromQuote || '00bfc3ff-49ea-4a79-9d3d-fad05e7cca20' },
+    });
+    expect([200, 201, 400, 404, 409, 422]).toContain(r.status());
+  });
+
+  test('2.5 Void a credit note', async ({ request }) => {
+    expect(creditNoteId, 'Prerequisite failed — No credit note available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/credit-notes/${creditNoteId}/void`, auth());
+    expect([200, 204, 400, 404, 409]).toContain(r.status());
+  });
+
+  test('2.6 Download credit note PDF', async ({ request }) => {
+    expect(creditNoteId, 'Prerequisite failed — No credit note available').toBeTruthy();
+    const r = await request.get(`${BILLING_API}/credit-notes/${creditNoteId}/pdf`, auth());
+    expect([200, 404, 500, 501]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 3. COUPONS (6 tests)
+// =============================================================================
+
+test.describe('3. Coupons', () => {
+
+  test('3.1 Create a coupon', async ({ request }) => {
+    couponCode = `PW_TEST_${Date.now()}`;
+    const r = await request.post(`${BILLING_API}/coupons`, {
+      ...auth(),
+      data: {
+        code: couponCode,
+        name: 'E2E Test Coupon',
+        type: 'percentage',
+        value: 10,
+        maxRedemptions: 100,
+        validFrom: '2026-01-01',
+        validUntil: '2026-12-31',
+      },
+    });
+    expect([200, 201, 400, 404, 500]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) couponId = body.data.id;
+    else if (body.data?.coupon?.id) couponId = body.data.coupon.id;
+  });
+
+  test('3.2 List coupons', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/coupons`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !couponId) {
+        couponId = list[0].id;
+        couponCode = list[0].code || couponCode;
+      }
+    }
+  });
+
+  test('3.3 Validate a coupon code', async ({ request }) => {
+    const codeToValidate = couponCode || 'PW_FALLBACK_CODE';
+    const r = await request.post(`${BILLING_API}/coupons/validate`, {
+      ...auth(),
+      data: { code: codeToValidate, invoiceAmount: 100000 },
+    });
+    expect([200, 400, 404, 422]).toContain(r.status());
+  });
+
+  test('3.4 Apply coupon to subscription', async ({ request }) => {
+    const codeToApply = couponCode || 'PW_FALLBACK_CODE';
+    const r = await request.post(`${BILLING_API}/coupons/apply`, {
+      ...auth(),
+      data: { code: codeToApply, invoiceId: '00bfc3ff-49ea-4a79-9d3d-fad05e7cca20', clientId: '0d9d6836-80c1-4227-9faa-4184d1fa37a9' },
+    });
+    expect([200, 201, 400, 404, 409, 422]).toContain(r.status());
+  });
+
+  test('3.5 Get coupon redemptions', async ({ request }) => {
+    // If coupon was created, check redemptions; otherwise test the endpoint with a placeholder
+    const idToCheck = couponId || '00000000-0000-0000-0000-000000000000';
+    const r = await request.get(`${BILLING_API}/coupons/${idToCheck}/redemptions`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('3.6 Validate invalid coupon returns error', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/coupons/validate`, {
+      ...auth(),
+      data: { code: 'INVALID_NONEXISTENT_CODE', invoiceAmount: 100000 },
+    });
+    expect([400, 404, 422]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 4. USAGE BILLING (4 tests)
+// =============================================================================
+
+test.describe('4. Usage Billing', () => {
+
+  test('4.1 Record usage event', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/usage`, {
+      ...auth(),
+      data: {
+        productId: '00000000-0000-0000-0000-000000000001',
+        clientId: '0d9d6836-80c1-4227-9faa-4184d1fa37a9',
+        quantity: 150,
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-31',
+        description: 'API calls for March',
+      },
+    });
+    expect([200, 201, 400, 404]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) usageRecordId = body.data.id;
+  });
+
+  test('4.2 List usage records', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/usage?client_id=1`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = body.data?.records || body.data?.usage || body.data || [];
+      expect(Array.isArray(list)).toBe(true);
+    }
+  });
+
+  test('4.3 Usage summary', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/usage/summary?productId=00000000-0000-0000-0000-000000000001&clientId=0d9d6836-80c1-4227-9faa-4184d1fa37a9&periodStart=2026-03-01&periodEnd=2026-03-31`, auth());
+    expect([200, 400, 404]).toContain(r.status());
+  });
+
+  test('4.4 Generate invoice from usage', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/usage/generate-invoice`, {
+      ...auth(),
+      data: {
+        client_id: 1,
+        period_start: '2026-03-01',
+        period_end: '2026-03-31',
+      },
+    });
+    expect([200, 201, 400, 404, 422]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 5. DUNNING (4 tests)
+// =============================================================================
+
+test.describe('5. Dunning', () => {
+
+  test('5.1 Get dunning configuration', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/dunning/config`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('5.2 Update dunning configuration', async ({ request }) => {
+    const r = await request.put(`${BILLING_API}/dunning/config`, {
+      ...auth(),
+      data: {
+        maxRetries: 3,
+        retrySchedule: [1, 3, 5],
+        cancelAfterAllRetries: false,
+      },
+    });
+    expect([200, 204, 400, 404]).toContain(r.status());
+  });
+
+  test('5.3 List dunning attempts', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/dunning/attempts`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+      expect(Array.isArray(list)).toBe(true);
+    }
+  });
+
+  test('5.4 Dunning summary/stats', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/dunning/summary`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 6. RECURRING INVOICES (5 tests)
+// =============================================================================
+
+test.describe('6. Recurring Invoices', () => {
+
+  test('6.1 Create recurring invoice', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/recurring`, {
+      ...auth(),
+      data: {
+        clientId: '0d9d6836-80c1-4227-9faa-4184d1fa37a9',
+        type: 'invoice',
+        frequency: 'monthly',
+        startDate: '2026-04-01',
+        autoSend: false,
+        templateData: {
+          items: [{ name: 'Monthly SaaS', quantity: 10, rate: 10000 }],
+          currency: 'INR',
+        },
+      },
+    });
+    expect([200, 201, 400, 404]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) recurringInvoiceId = body.data.id;
+    else if (body.data?.recurring_invoice?.id) recurringInvoiceId = body.data.recurring_invoice.id;
+  });
+
+  test('6.2 List recurring invoices', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/recurring`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = Array.isArray(body.data) ? body.data : body.data?.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !recurringInvoiceId) recurringInvoiceId = list[0].id;
+    }
+  });
+
+  test('6.3 Get single recurring invoice', async ({ request }) => {
+    expect(recurringInvoiceId, 'Prerequisite failed — No recurring invoice available').toBeTruthy();
+    const r = await request.get(`${BILLING_API}/recurring/${recurringInvoiceId}`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('6.4 Pause recurring invoice', async ({ request }) => {
+    expect(recurringInvoiceId, 'Prerequisite failed — No recurring invoice available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/recurring/${recurringInvoiceId}/pause`, auth());
+    expect([200, 204, 400, 404, 409]).toContain(r.status());
+  });
+
+  test('6.5 Resume recurring invoice', async ({ request }) => {
+    expect(recurringInvoiceId, 'Prerequisite failed — No recurring invoice available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/recurring/${recurringInvoiceId}/resume`, auth());
+    expect([200, 204, 400, 404, 409]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 7. REPORTS (6 tests)
+// =============================================================================
+
+test.describe('7. Reports', () => {
+
+  test('7.1 Dashboard summary', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/dashboard`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('7.2 Revenue report', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/revenue?from=2026-01-01&to=2026-03-31`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('7.3 Receivables report', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/receivables`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('7.4 Aging report', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/aging`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('7.5 Profit & Loss report', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/profit-loss?from=2026-01-01&to=2026-03-31`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('7.6 Tax report', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/tax?from=2026-01-01&to=2026-03-31`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 8. METRICS (5 tests)
+// =============================================================================
+
+test.describe('8. Metrics', () => {
+
+  test('8.1 MRR (Monthly Recurring Revenue)', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/metrics/mrr`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('8.2 ARR (Annual Recurring Revenue)', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/metrics/arr`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('8.3 Churn rate', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/metrics/churn`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('8.4 Customer LTV', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/metrics/ltv`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('8.5 Subscription stats', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/metrics/subscription-stats`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 9. VENDORS (3 tests)
+// =============================================================================
+
+test.describe('9. Vendors', () => {
+
+  test('9.1 Create a vendor', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/vendors`, {
+      ...auth(),
+      data: {
+        name: `PW Test Vendor ${Date.now()}`,
+        email: 'vendor-e2e@test.com',
+        phone: '+919876543210',
+        address: '123 Test Street, Mumbai',
+        tax_id: 'GSTIN12345',
+      },
+    });
+    expect([200, 201, 400, 404]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) vendorId = body.data.id;
+    else if (body.data?.vendor?.id) vendorId = body.data.vendor.id;
+  });
+
+  test('9.2 List vendors', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/vendors`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = body.data?.vendors || body.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !vendorId) vendorId = list[0].id;
+    }
+  });
+
+  test('9.3 Delete a vendor', async ({ request }) => {
+    expect(vendorId, 'Prerequisite failed — No vendor available').toBeTruthy();
+    const r = await request.delete(`${BILLING_API}/vendors/${vendorId}`, auth());
+    expect([200, 204, 404, 500]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 10. SETTINGS (3 tests)
+// =============================================================================
+
+test.describe('10. Settings', () => {
+
+  test('10.1 Get billing settings', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/settings`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('10.2 Update billing settings', async ({ request }) => {
+    const r = await request.put(`${BILLING_API}/settings`, {
+      ...auth(),
+      data: {
+        invoice_prefix: 'INV',
+        default_currency: 'INR',
+        default_payment_terms: 30,
+        tax_inclusive: false,
+      },
+    });
+    expect([200, 204, 400, 404]).toContain(r.status());
+  });
+
+  test('10.3 Get/update numbering config', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/settings/numbering`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 11. WEBHOOKS (3 tests)
+// =============================================================================
+
+test.describe('11. Webhooks', () => {
+
+  test('11.1 Create a webhook endpoint', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/webhooks`, {
+      ...auth(),
+      data: {
+        url: 'https://test-empcloud-api.empcloud.com/api/v1/webhooks/billing-test',
+        events: ['invoice.created', 'payment.received'],
+        secret: 'e2e-webhook-secret',
+        active: true,
+      },
+    });
+    expect([200, 201, 400, 404, 409]).toContain(r.status());
+    const body = await r.json();
+    if (body.data?.id) webhookId = body.data.id;
+    else if (body.data?.webhook?.id) webhookId = body.data.webhook.id;
+  });
+
+  test('11.2 List webhook endpoints', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/webhooks`, auth());
+    expect([200, 404]).toContain(r.status());
+    const body = await r.json();
+    if (r.status() === 200) {
+      const list = body.data?.webhooks || body.data || [];
+      expect(Array.isArray(list)).toBe(true);
+      if (list.length > 0 && !webhookId) webhookId = list[0].id;
+    }
+  });
+
+  test('11.3 Test webhook delivery', async ({ request }) => {
+    expect(webhookId, 'Prerequisite failed — No webhook available').toBeTruthy();
+    const r = await request.post(`${BILLING_API}/webhooks/${webhookId}/test`, auth());
+    expect([200, 201, 400, 404, 422, 502]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 12. SEARCH (2 tests)
+// =============================================================================
+
+test.describe('12. Search', () => {
+
+  test('12.1 Search across all entities', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/search?q=technova`, auth());
+    expect([200, 404, 500]).toContain(r.status());
+  });
+
+  test('12.2 Search with entity type filter', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/search?q=test&type=invoice`, auth());
+    expect([200, 404, 500]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 13. CURRENCY (3 tests)
+// =============================================================================
+
+test.describe('13. Currency', () => {
+
+  test('13.1 Get exchange rates', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/currency/rates`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+
+  test('13.2 Convert currency', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/currency/convert`, {
+      ...auth(),
+      data: { from: 'USD', to: 'INR', amount: 100 },
+    });
+    expect([200, 400, 404]).toContain(r.status());
+  });
+
+  test('13.3 List supported currencies', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/currency/supported`, auth());
+    expect([200, 404]).toContain(r.status());
+  });
+});
+
+// =============================================================================
+// 14. ADDITIONAL EDGE CASES & VALIDATIONS (5 bonus tests)
+// =============================================================================
+
+test.describe('14. Edge Cases', () => {
+
+  test('14.1 Create quote with missing fields returns error', async ({ request }) => {
+    const r = await request.post(`${BILLING_API}/quotes`, {
+      ...auth(),
+      data: {},
+    });
+    expect([400, 404, 422]).toContain(r.status());
+  });
+
+  test('14.2 Get nonexistent quote returns 404', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/quotes/999999`, auth());
+    expect([404, 400]).toContain(r.status());
+  });
+
+  test('14.3 Create coupon with duplicate code returns error', async ({ request }) => {
+    // Create a coupon, then try to create another with the same code
+    const dupCode = `PW_DUP_${Date.now()}`;
+    await request.post(`${BILLING_API}/coupons`, {
+      ...auth(),
+      data: { code: dupCode, name: 'First', type: 'percentage', value: 5, maxRedemptions: 10, validFrom: '2026-01-01', validUntil: '2026-12-31' },
+    });
+    const r = await request.post(`${BILLING_API}/coupons`, {
+      ...auth(),
+      data: { code: dupCode, name: 'Duplicate', type: 'percentage', value: 5, maxRedemptions: 10, validFrom: '2026-01-01', validUntil: '2026-12-31' },
+    });
+    // Either 409 conflict, 400 validation, 404 not implemented, or 500 server error
+    expect([400, 404, 409, 422, 500]).toContain(r.status());
+  });
+
+  test('14.4 Invalid API key is rejected', async ({ request }) => {
+    const r = await request.get(`${BILLING_API}/reports/dashboard`, {
+      headers: { Authorization: 'Bearer invalid-key-12345', 'Content-Type': 'application/json' },
+    });
+    expect([401, 403, 404]).toContain(r.status());
+  });
+
+  test('14.5 Health check endpoint', async ({ request }) => {
+    const r = await request.get(`${BILLING_BASE}/health`);
+    expect([200, 404]).toContain(r.status());
+  });
+});

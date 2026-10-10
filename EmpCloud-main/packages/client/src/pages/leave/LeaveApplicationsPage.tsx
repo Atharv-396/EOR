@@ -1,0 +1,322 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import { leaveTypeLabel } from "@/lib/leave-type-label";
+import { CheckCircle2, XCircle, Clock, Ban, Filter } from "lucide-react";
+
+interface LeaveApplication {
+  id: number;
+  user_id: number;
+  leave_type_id: number;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  is_half_day: boolean;
+  reason: string;
+  status: string;
+  created_at: string;
+}
+
+interface LeaveType {
+  id: number;
+  name: string;
+  code?: string;
+}
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; icon: typeof Clock }> = {
+  pending: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", icon: Clock },
+  approved: { bg: "bg-green-50 dark:bg-green-950/40", text: "text-green-700 dark:text-green-300", icon: CheckCircle2 },
+  rejected: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", icon: XCircle },
+  cancelled: { bg: "bg-muted", text: "text-muted-foreground", icon: Ban },
+};
+
+const HR_ROLES = ["hr_admin", "org_admin", "super_admin", "manager"];
+
+export default function LeaveApplicationsPage() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const canApprove = user ? HR_ROLES.includes(user.role) : false;
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [actionId, setActionId] = useState<number | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["leave-applications", page, statusFilter],
+    queryFn: () =>
+      api
+        .get("/leave/applications", { params: { page, per_page: 20, status: statusFilter || undefined } })
+        .then((r) => r.data),
+  });
+
+  const { data: leaveTypes = [] } = useQuery<LeaveType[]>({
+    queryKey: ["leave-types"],
+    queryFn: () => api.get("/leave/types").then((r) => r.data.data),
+  });
+
+  const applications: LeaveApplication[] = data?.data || [];
+  const meta = data?.meta;
+
+  // #1411 — surface approve/reject errors instead of silently failing
+  const [actionError, setActionError] = useState<string | null>(null);
+  const extractErr = (err: any) =>
+    err?.response?.data?.error?.message ||
+    err?.response?.data?.message ||
+    err?.message ||
+    t("leave.applications.actionFailed");
+
+  const approveMut = useMutation({
+    mutationFn: (id: number) =>
+      api.put(`/leave/applications/${id}/approve`, { remarks }).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leave-applications"] });
+      qc.invalidateQueries({ queryKey: ["leave-balances"] });
+      setActionId(null);
+      setRemarks("");
+      setActionError(null);
+    },
+    onError: (err: any) => setActionError(extractErr(err)),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (id: number) =>
+      api.put(`/leave/applications/${id}/reject`, { remarks }).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leave-applications"] });
+      setActionId(null);
+      setRemarks("");
+      setActionError(null);
+    },
+    onError: (err: any) => setActionError(extractErr(err)),
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: (id: number) =>
+      api.put(`/leave/applications/${id}/cancel`).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leave-applications"] });
+      qc.invalidateQueries({ queryKey: ["leave-balances"] });
+      setActionError(null);
+    },
+    onError: (err: any) => setActionError(extractErr(err)),
+  });
+
+  const getTypeName = (id: number) => {
+    const lt = leaveTypes.find((x) => x.id === id);
+    return lt ? leaveTypeLabel(t, lt) : "-";
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("leave.applications.title")}</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">{t("leave.applications.subtitle")}</p>
+        </div>
+      </div>
+
+      {/* #1411 — action feedback */}
+      {actionError && (
+        <div className="mb-4 flex items-start justify-between gap-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300 text-[13px] rounded-md px-4 py-3">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-xs text-red-500 hover:text-red-700"
+          >
+            {t("leave.applications.dismiss")}
+          </button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-4">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          className="px-3 py-2 border border-border rounded-md text-[13px]"
+        >
+          <option value="">{t("leave.applications.allStatuses")}</option>
+          <option value="pending">{t("leave.applications.status.pending")}</option>
+          <option value="approved">{t("leave.applications.status.approved")}</option>
+          <option value="rejected">{t("leave.applications.status.rejected")}</option>
+          <option value="cancelled">{t("leave.applications.status.cancelled")}</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card rounded-lg border border-border overflow-x-auto -mx-4 lg:mx-0">
+        <table className="min-w-full">
+          <thead className="bg-muted/50 border-b border-border">
+            <tr>
+              {canApprove && <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colEmployee")}</th>}
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colType")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colDates")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colDays")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colReason")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colStatus")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colRemarks")}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t("leave.applications.colActions")}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
+              <tr><td colSpan={canApprove ? 8 : 7} className="px-6 py-8 text-center text-muted-foreground">{t("leave.applications.loading")}</td></tr>
+            ) : applications.length === 0 ? (
+              <tr>
+                <td colSpan={canApprove ? 8 : 7} className="px-6 py-8 text-center text-muted-foreground">
+                  {/*
+                    #1822 — Bug 26: previously a fresh page-load with the
+                    "Pending" filter active just said "No applications
+                    found" and looked broken. When a status filter is
+                    active and yields zero rows, offer a one-click escape
+                    back to the All view so the user can see their other
+                    leaves instead of staring at an empty table.
+                  */}
+                  {statusFilter ? (
+                    <span>
+                      {t("leave.applications.noFiltered", { status: t(`leave.applications.status.${statusFilter}`) })}{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setStatusFilter(""); setPage(1); }}
+                        className="text-brand-600 hover:underline font-medium"
+                      >
+                        {t("leave.applications.showAll")}
+                      </button>
+                    </span>
+                  ) : (
+                    t("leave.applications.empty")
+                  )}
+                </td>
+              </tr>
+            ) : (
+              applications.map((app) => {
+                const style = STATUS_STYLES[app.status] || STATUS_STYLES.pending;
+                const Icon = style.icon;
+                return (
+                  <tr key={app.id} className="hover:bg-muted/50 transition-colors">
+                    {canApprove && (
+                      <td className="px-4 py-2.5 text-[13px] font-medium text-foreground">
+                        {(app as any).user_first_name ? `${(app as any).user_first_name} ${(app as any).user_last_name || ""}` : t("leave.applications.userHash", { id: app.user_id })}
+                      </td>
+                    )}
+                    <td className="px-4 py-2.5 text-[13px] font-medium text-foreground">
+                      {getTypeName(app.leave_type_id)}
+                      {/* #1609 — guard with Boolean(): MySQL tinyint 0 would
+                          render as a literal "0" via JSX `&&` short-circuit. */}
+                      {Boolean(app.is_half_day) && (
+                        <span className="ml-1 text-xs text-muted-foreground">{t("leave.applications.half")}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">
+                      {app.start_date} &mdash; {app.end_date}
+                    </td>
+                    <td className="px-4 py-2.5 text-[13px] tabular-nums text-foreground font-medium">
+                      {Number(app.days_count)}
+                    </td>
+                    <td className="px-4 py-2.5 text-[13px] text-muted-foreground max-w-xs truncate">
+                      {app.reason}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium ${style.bg} ${style.text}`}>
+                        <Icon className="h-3 w-3" /> {t(`leave.applications.status.${app.status}`, { defaultValue: app.status })}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-[13px] text-muted-foreground max-w-xs truncate">
+                      {(app as any).admin_remarks || "-"}
+                      {(app as any).approver_name && (app as any).admin_remarks && (
+                        <span className="block text-xs text-muted-foreground">{t("leave.applications.by", { name: (app as any).approver_name })}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        {app.status === "pending" && (
+                          <>
+                            {canApprove && (
+                              <button
+                                onClick={() => setActionId(actionId === app.id ? null : app.id)}
+                                className="text-xs bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 px-2 py-1 rounded-md hover:bg-green-100 dark:hover:bg-green-950/60"
+                              >
+                                {t("leave.applications.review")}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => cancelMut.mutate(app.id)}
+                              className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-md hover:bg-muted/70"
+                            >
+                              {t("leave.applications.cancel")}
+                            </button>
+                          </>
+                        )}
+                        {app.status === "approved" && (
+                          <button
+                            onClick={() => cancelMut.mutate(app.id)}
+                            className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-md hover:bg-muted/70"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                      {canApprove && actionId === app.id && app.status === "pending" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder={t("leave.applications.remarksPlaceholder")}
+                            className="px-2 py-1 border border-border rounded text-xs flex-1"
+                          />
+                          <button
+                            onClick={() => approveMut.mutate(app.id)}
+                            disabled={approveMut.isPending}
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {t("leave.applications.approve")}
+                          </button>
+                          <button
+                            onClick={() => rejectMut.mutate(app.id)}
+                            disabled={rejectMut.isPending}
+                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {t("leave.applications.reject")}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+
+        {meta && meta.total_pages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+            <p className="text-[13px] tabular-nums text-muted-foreground">
+              {t("leave.applications.pageOf", { page: meta.page, total_pages: meta.total_pages, total: meta.total })}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50"
+              >
+                {t("leave.applications.previous")}
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= meta.total_pages}
+                className="px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50"
+              >
+                {t("leave.applications.next")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,433 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Search,
+  Loader2,
+  MessagesSquare,
+  MessageCircle,
+  TrendingUp,
+  Users,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import { FEED_QUERY_KEY, useFeed } from "@/features/feed/api";
+import { PostComposer } from "@/features/feed/components/PostComposer";
+import { PostCard } from "@/features/feed/components/PostCard";
+import { CategoriesPanel } from "@/features/feed/components/CategoriesPanel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+
+const HR_ROLES = ["hr_admin", "org_admin", "super_admin"];
+
+type FeedFilter = "all" | "mine";
+
+// Full feed — one column for employees, three (feed + stats sidebar) for HR.
+// Composer at the top so users land on /feed → post → read without a modal.
+export default function FeedPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isHR = !!user && HR_ROLES.includes(user.role);
+  // Back button always returns to the role-appropriate home. Previously we
+  // used navigate(-1) which could land on unrelated pages (or nothing at all
+  // when the user typed the URL or used a bookmark / sidebar link).
+  const homePath = isHR ? "/" : "/self-service";
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState<string | undefined>(undefined);
+  const [filter, setFilter] = useState<FeedFilter>("all");
+
+  const author_id = filter === "mine" && user ? Number(user.id) : undefined;
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isFetching } = useFeed({
+    search,
+    author_id,
+  });
+
+  // #1560 — Scroll the main content area to the top on filter change so the
+  // user sees the refreshed post list. Without this, a click on "My posts"
+  // when scrolled mid-feed silently swaps content above the viewport and
+  // looks like the tab did nothing. We can't use window.scrollTo because
+  // DashboardLayout's main column owns the scrollbar (the page itself
+  // never scrolls); scrolling a top-of-page anchor into view is the
+  // simplest way to defer to whichever ancestor is scrollable.
+  const topAnchorRef = useRef<HTMLDivElement | null>(null);
+  // Skip the very first run so we don't scroll-jack on mount.
+  const filterMounted = useRef(false);
+  useEffect(() => {
+    if (!filterMounted.current) {
+      filterMounted.current = true;
+      return;
+    }
+    topAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [filter]);
+
+  const { data: stats } = useQuery({
+    queryKey: ["forum-dashboard"],
+    queryFn: () => api.get("/forum/dashboard").then((r) => r.data.data),
+    enabled: isHR,
+  });
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "300px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const posts = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
+  const refresh = () => qc.invalidateQueries({ queryKey: FEED_QUERY_KEY });
+
+  return (
+    <div className={isHR ? "" : "mx-auto max-w-2xl"}>
+      <div ref={topAnchorRef} aria-hidden="true" />
+      {/* ───────────────────── Hero header ───────────────────── */}
+      <header className="relative mb-6 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-brand-50 via-white to-purple-50 dark:from-brand-950/40 dark:via-gray-900 dark:to-purple-950/40 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate(homePath)}
+              aria-label={t("feed.page.backToDashboard")}
+              title={t("feed.page.backToDashboard")}
+              className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-card/70 text-muted-foreground backdrop-blur hover:bg-card hover:text-foreground transition-all"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("feed.page.title")}</h1>
+                {isHR && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 dark:bg-brand-950/40 px-2 py-0.5 text-[11px] font-medium text-brand-700 dark:text-brand-300">
+                    <Sparkles className="h-3 w-3" /> {t("feed.page.admin")}
+                  </span>
+                )}
+              </div>
+              <p className="text-[13px] text-muted-foreground mt-1">
+                {isHR ? t("feed.page.subtitleHr") : t("feed.page.subtitleEmployee")}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={refresh}
+              aria-label={t("feed.page.refresh")}
+              disabled={isFetching}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-card/70 text-muted-foreground backdrop-blur hover:bg-card hover:text-brand-700 disabled:opacity-50 transition-all"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ───────────────────── Body layout ─────────────────────
+          On lg+ the HR sidebar is positioned absolutely on the right so
+          it doesn't contribute to page flow. This keeps the scrollable
+          page height equal to the main column's content height — a grid
+          layout would force the row (and the page) to grow to the taller
+          of the two columns, producing a big blank canvas below the last
+          post when the feed has few items. */}
+      <div className={isHR ? "relative" : ""}>
+        {/* Main column — reserve 1/3 + gap on the right for the sidebar */}
+        <div className={isHR ? "space-y-4 lg:pr-[calc(33.333%+1.5rem)]" : "space-y-4"}>
+          {/* Search + filter chips */}
+          <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+            <form
+              onSubmit={(e) => { e.preventDefault(); setSearch(searchInput.trim() || undefined); }}
+              className="relative"
+            >
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={t("feed.page.searchPlaceholder")}
+                className="w-full rounded-full border border-border bg-muted pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-card focus:border-transparent transition-all"
+              />
+              {(searchInput || search) && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(""); setSearch(undefined); }}
+                  aria-label={t("feed.page.clearSearch")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </form>
+
+            <div className="flex items-center gap-2">
+              <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>
+                {t("feed.page.allPosts")}
+              </FilterChip>
+              <FilterChip active={filter === "mine"} onClick={() => setFilter("mine")}>
+                {t("feed.page.myPosts")}
+              </FilterChip>
+              {/* #1560 — Inline spinner during a tab-triggered refetch so the
+                  user sees an immediate signal that their click did
+                  something. Previously the only visible feedback was the
+                  posts re-rendering, which was easy to miss when scrolled
+                  down or when both tabs returned similar content. */}
+              {isFetching && !isFetchingNextPage && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              )}
+              {(search || filter !== "all") && !isFetching && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {t("feed.page.results", { count: posts.length })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Composer */}
+          <PostComposer placeholder={t("feed.page.composerPlaceholder")} />
+
+          {/* Posts */}
+          {isLoading ? (
+            <FeedSkeleton />
+          ) : posts.length === 0 ? (
+            <EmptyState search={search} filter={filter} />
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+
+          <div ref={sentinelRef} />
+
+          {isFetchingNextPage && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> {t("feed.page.loadingMore")}
+            </div>
+          )}
+        </div>
+
+        {/* HR sidebar.
+            - Mobile / tablet: stacks below main (normal flow, mt-6).
+            - lg+: absolutely positioned on the right so it does NOT
+              lengthen the page; internal wrapper uses sticky so it
+              follows scroll, and max-h + overflow cap it to the
+              viewport when the sidebar content is tall. */}
+        {isHR && (
+          <aside className="mt-6 space-y-4 lg:mt-0 lg:absolute lg:right-0 lg:top-0 lg:w-1/3">
+            <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+            {/* KPI grid */}
+            {stats && (
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard
+                  icon={<MessagesSquare className="h-4 w-4" />}
+                  label={t("feed.page.statTotalPosts")}
+                  value={stats.total_posts ?? 0}
+                  tone="blue"
+                />
+                <StatCard
+                  icon={<MessageCircle className="h-4 w-4" />}
+                  label={t("feed.page.statComments")}
+                  value={stats.total_replies ?? 0}
+                  tone="green"
+                />
+                <StatCard
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label={t("feed.page.statActive7d")}
+                  value={stats.active_discussions ?? 0}
+                  tone="amber"
+                />
+                <StatCard
+                  icon={<Users className="h-4 w-4" />}
+                  label={t("feed.page.statContributors")}
+                  value={Array.isArray(stats.top_contributors) ? stats.top_contributors.length : 0}
+                  tone="purple"
+                />
+              </div>
+            )}
+
+            {/* Categories — full CRUD lives here now (replaces the old
+                standalone Forum Dashboard page). */}
+            <CategoriesPanel />
+
+            {/* Top contributors */}
+            {stats?.top_contributors && stats.top_contributors.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Users className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                    {t("feed.page.topContributors")}
+                  </h3>
+                  <span className="text-[11px] text-muted-foreground">{t("feed.page.last30d")}</span>
+                </div>
+                <ul className="space-y-2">
+                  {stats.top_contributors.slice(0, 5).map((u: any, i: number) => (
+                    <li
+                      key={u.id}
+                      className="flex items-center gap-3 rounded-lg p-1.5 -m-1.5 hover:bg-muted transition-colors"
+                    >
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <EmployeeAvatar
+                        userId={u.id}
+                        hasPhoto={!!u.photo_path}
+                        firstName={u.first_name}
+                        lastName={u.last_name}
+                        size="sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {u.first_name} {u.last_name}
+                        </p>
+                      </div>
+                      <span className="text-[11px] tabular-nums font-semibold text-brand-600 dark:text-brand-400">
+                        {u.contribution_count}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Trending posts */}
+            {stats?.trending_posts && stats.trending_posts.length > 0 && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                  <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  {t("feed.page.trendingWeek")}
+                </h3>
+                <ul className="space-y-2.5">
+                  {stats.trending_posts.slice(0, 4).map((p: any) => (
+                    <li key={p.id} className="text-sm">
+                      <p className="font-medium text-foreground line-clamp-2">{p.title}</p>
+                      <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
+                        <span>{p.author_first_name} {p.author_last_name}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <MessageCircle className="h-3 w-3" /> {p.reply_count}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+        active
+          ? "bg-brand-600 text-white shadow-sm"
+          : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "blue" | "green" | "amber" | "purple";
+}) {
+  const toneClasses: Record<string, { bg: string; text: string; ring: string }> = {
+    blue:   { bg: "bg-blue-50 dark:bg-blue-950/40",   text: "text-blue-700 dark:text-blue-300",   ring: "group-hover:ring-blue-200" },
+    green:  { bg: "bg-green-50 dark:bg-green-950/40",  text: "text-green-700 dark:text-green-300",  ring: "group-hover:ring-green-200" },
+    amber:  { bg: "bg-amber-50 dark:bg-amber-950/40",  text: "text-amber-700 dark:text-amber-300",  ring: "group-hover:ring-amber-200" },
+    purple: { bg: "bg-purple-50 dark:bg-purple-950/40", text: "text-purple-700 dark:text-purple-300", ring: "group-hover:ring-purple-200" },
+  };
+  const t = toneClasses[tone];
+  return (
+    <div className={`group rounded-lg border border-border bg-card p-3 transition-colors duration-150 hover:border-brand-400 ${t.ring}`}>
+      <div className={`h-8 w-8 rounded-md flex items-center justify-center ${t.bg} ${t.text}`}>
+        {icon}
+      </div>
+      <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground leading-none">{value}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-lg border border-border bg-card p-5 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-muted" />
+            <div className="space-y-2 flex-1">
+              <div className="h-3 w-32 bg-muted rounded" />
+              <div className="h-2.5 w-20 bg-muted rounded" />
+            </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <div className="h-3 w-full bg-muted rounded" />
+            <div className="h-3 w-5/6 bg-muted rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ search, filter }: { search?: string; filter: FeedFilter }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
+      <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-3">
+        <MessagesSquare className="h-6 w-6" />
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">
+        {search
+          ? t("feed.page.emptySearch")
+          : filter === "mine"
+            ? t("feed.page.emptyMine")
+            : t("feed.page.emptyAll")}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {search ? t("feed.page.emptySearchHint") : t("feed.page.emptyHint")}
+      </p>
+    </div>
+  );
+}

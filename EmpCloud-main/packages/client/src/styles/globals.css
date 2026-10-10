@@ -1,0 +1,306 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Theme tokens (light / dark)
+   Semantic CSS variables that flip when the `.dark` class is toggled on <html>
+   (see src/lib/theme.tsx). Components use the mapped Tailwind utilities
+   (bg-background, text-foreground, bg-card, border-border, …) so a single
+   definition here themes the whole app instead of per-element `dark:` variants.
+   Values are HSL channels (no hsl() wrapper) so Tailwind can apply opacity.
+--------------------------------------------------------------------------- */
+:root {
+  --background: 214 100% 98%;       /* cool blue-white — EMP Cloud canvas */
+  --foreground: 222 47% 11%;        /* gray-900 — primary text */
+  --card: 0 0% 100%;                /* white — surfaces/cards */
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;             /* gray-100 — subtle bg */
+  --muted-foreground: 215 16% 47%;  /* gray-500 — secondary text */
+  --border: 214 32% 91%;            /* gray-200 */
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;              /* brand-500 */
+}
+
+.dark {
+  /* Matched to EMP Payroll's dark palette: a deeper, true-neutral gray
+     (gray-950/900/800) rather than a blue-tinted slate, so the two apps
+     feel consistent in dark mode. Brand accent stays EmpCloud blue. */
+  --background: 224 71% 4%;         /* gray-950 — deepest canvas */
+  --foreground: 220 14% 96%;        /* gray-100 — primary text */
+  --card: 221 39% 11%;             /* gray-900 — surfaces/cards */
+  --card-foreground: 220 14% 96%;
+  --popover: 221 39% 11%;          /* gray-900 */
+  --popover-foreground: 220 14% 96%;
+  --muted: 215 28% 17%;            /* gray-800 — subtle bg / hover */
+  --muted-foreground: 218 11% 65%; /* gray-400 — secondary text */
+  --border: 215 28% 17%;           /* gray-800 border */
+  --input: 215 28% 17%;
+  --ring: 217 91% 60%;             /* brand-500 (blue) */
+}
+
+@layer base {
+  /* Dark-mode scrollbars. The browser's default scrollbar stays light in
+     dark mode (it's chrome, not page CSS), which reads as a jarring bright
+     bar against the dark sidebar / panels. Theme it to the token palette in
+     dark mode only; light mode keeps the native scrollbar. Covers Webkit
+     (Chrome/Edge/Safari) and Firefox (scrollbar-color/width). */
+  .dark {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+    scrollbar-width: thin;
+  }
+  .dark ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+    /* transparent border creates padding so the thumb reads as a thin pill */
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.55);
+  }
+  .dark ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Browser autofill in dark mode. Chrome/Safari force their own light-yellow
+     `-webkit-autofill` background on autofilled fields, which overrides
+     `bg-card` and leaves a bright white/yellow box (e.g. the login email
+     field once the browser fills it) sitting on the dark card. You can't set
+     `background` on an autofilled input directly, so paint over it with a
+     large inset box-shadow tinted to --card and force the text color to
+     --foreground. Long transition-delay stops the brief flash of the native
+     colour on focus. Scoped to .dark so light mode keeps native autofill. */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark input:-webkit-autofill:active,
+  .dark textarea:-webkit-autofill,
+  .dark select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--card)) inset !important;
+    box-shadow: 0 0 0 1000px hsl(var(--card)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+    caret-color: hsl(var(--foreground));
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
+  /* RTL (Arabic) layout support — flip directional properties */
+  [dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+  }
+
+  [dir="rtl"] .border-r {
+    border-right: none;
+    border-left-width: 1px;
+  }
+
+  [dir="rtl"] .border-l {
+    border-left: none;
+    border-right-width: 1px;
+  }
+
+  /* Flip sidebar slide-in animation for RTL */
+  [dir="rtl"] .animate-slide-in-left {
+    left: auto;
+    right: 0;
+  }
+
+  /* Ensure flex layouts align correctly for RTL */
+  [dir="rtl"] .ml-auto {
+    margin-left: unset;
+    margin-right: auto;
+  }
+
+  [dir="rtl"] .mr-auto {
+    margin-right: unset;
+    margin-left: auto;
+  }
+
+  /* Fix left-positioned fixed elements for RTL */
+  [dir="rtl"] .fixed.left-0 {
+    left: auto;
+    right: 0;
+  }
+
+  /* Sidebar collapse toggle in RTL. The button is anchored to the sidebar's
+     inner edge via `-right-3` (Tailwind), which is correct for LTR (sidebar
+     on the left). In RTL the sidebar flips to the right of the viewport, so
+     `-right-3` pushes the circular toggle onto the OUTER edge where it sticks
+     out as a stray wedge. Re-anchor it to the (now-inner) left edge and mirror
+     the chevron so it points the right way. */
+  /* !important is load-bearing here for the same reason as the collapsed-nav
+     rules below: this sits in @layer base while Tailwind's `-right-3` sits in
+     @layer utilities, which is emitted later in the prod build and would win
+     the cascade on source order. Without !important the override "works" in
+     dev (source-order coincidence) and silently regresses in prod. */
+  [dir="rtl"] .sidebar-collapse-toggle {
+    right: auto !important;
+    left: -0.75rem !important; /* mirror of Tailwind -right-3 */
+  }
+  [dir="rtl"] .sidebar-collapse-toggle svg {
+    transform: scaleX(-1);
+  }
+
+  /* #1415 — Collapsed sidebar: hide text labels, section headers, badges, and
+     chevrons so only nav icons remain visible. We rely on a class toggle on
+     the sidebar root (.sidebar-collapsed) so every NavLink/NestedNavItem
+     inside it participates without prop-drilling.
+
+     #1816 — Zero out horizontal padding on each row when collapsed. The
+     sidebar narrows to w-16 (64px); the nav's p-4 already eats 32px, and
+     each row's px-3 (Tailwind) ate the remaining 32px right down to 8px,
+     which is smaller than the 20px icon. The icons were getting visually
+     clipped / overflowing past the right edge so users saw "nothing" in
+     the collapsed sidebar. With horizontal padding removed they have the
+     full 32px content box to center in.
+
+     IMPORTANT — DO NOT remove `justify-content: center` and DO NOT drop the
+     `!important` markers on padding. Both are load-bearing in production:
+
+       - `justify-content: center` was once commented out for debugging and
+         the icons regressed (#1816). The default `flex-start` shoves them
+         behind the parent's padding so users see a blank column.
+
+       - `!important` is required because this rule sits in `@layer base`
+         while Tailwind's `px-3 / pl-9 / pr-3` utilities sit in
+         `@layer utilities`, which wins the cascade regardless of selector
+         specificity. Vite dev builds happen to emit CSS in source order so
+         the unimportant version "works locally" and silently regressed in
+         the prod build. */
+  .sidebar-collapsed nav a,
+  .sidebar-collapsed nav button {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .sidebar-collapsed nav a > span,
+  .sidebar-collapsed nav button > span,
+  .sidebar-collapsed nav a > .inline-block,
+  /* Section labels: the top-level `label` prop renders as `.text-xs.uppercase`,
+     but the per-group section HEADERS (ATTENDANCE & LEAVE, COMMUNICATION, …)
+     render as `text-[10px] … uppercase` divs — a different size class the old
+     selector missed, so they leaked into the 64px collapsed rail and clipped
+     to "ATTEN / COMM / WOR / ACCOU". Match any uppercase label div in the
+     collapsed nav so every section header hides regardless of its size class. */
+  .sidebar-collapsed nav .text-xs.uppercase,
+  .sidebar-collapsed nav > .uppercase,
+  .sidebar-collapsed nav button > svg.lucide-chevron-down {
+    display: none;
+  }
+  .sidebar-collapsed nav > div > .mt-6 {
+    margin-top: 0.5rem;
+  }
+}
+
+@layer components {
+  /* Compact sidebar scrollbar: a slim brand-blue thumb without a heavy track.
+     The WebKit width stays exact in Chrome/Edge; Firefox uses its thin preset. */
+  @supports (-moz-appearance: none) {
+    .sidebar-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--ring) / 0.7) transparent;
+    }
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--ring) / 0.7);
+    border-radius: 9999px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--ring) / 0.95);
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-button,
+  .sidebar-scrollbar::-webkit-scrollbar-corner {
+    display: none;
+  }
+
+  /* Rich-text content — shared by the policy RichTextEditor's editable surface
+     and the read-only display panels (dangerouslySetInnerHTML). Tailwind's
+     preflight (@layer base) strips heading sizes and list markers, and the
+     @tailwindcss/typography plugin is NOT installed, so we restore styling for
+     the handful of block elements the editor can emit. Lives in @layer
+     components so it beats preflight but still yields to utility classes. */
+  .rich-text {
+    @apply text-sm leading-relaxed text-gray-700;
+  }
+  .rich-text h1 {
+    @apply mb-2 mt-4 text-xl font-bold text-gray-900;
+  }
+  .rich-text h2 {
+    @apply mb-2 mt-3 text-lg font-semibold text-gray-900;
+  }
+  .rich-text p {
+    @apply mb-2;
+  }
+  .rich-text ul {
+    @apply mb-2 list-disc space-y-1 pl-6;
+  }
+  .rich-text ol {
+    @apply mb-2 list-decimal space-y-1 pl-6;
+  }
+  .rich-text li {
+    @apply pl-1;
+  }
+  .rich-text a {
+    @apply text-brand-600 underline hover:text-brand-700;
+  }
+  .rich-text strong,
+  .rich-text b {
+    @apply font-semibold;
+  }
+  .rich-text em,
+  .rich-text i {
+    @apply italic;
+  }
+  .rich-text u {
+    @apply underline;
+  }
+  /* No trailing gap after the last block so panels stay tight. */
+  .rich-text > :last-child {
+    @apply mb-0;
+  }
+
+  /* react-day-picker (DateRangePicker calendar) renders from its own
+     bundled style.css with hardcoded light colors. In dark mode the popover
+     would show as a light island, so remap the rdp CSS variables + a couple
+     of element colors to the dark theme. Scoped to .rdp-wrap so it only
+     affects our calendars. Applies wherever DateRangePicker is used
+     (audit, attendance, etc.). */
+  .dark .rdp-wrap {
+    --rdp-accent-color: theme("colors.brand.500");
+    --rdp-accent-background-color: theme("colors.brand.950");
+    --rdp-range_middle-background-color: theme("colors.brand.950");
+    --rdp-today-color: theme("colors.brand.400");
+  }
+  .dark .rdp-wrap .rdp-day_button:hover:not([disabled]):not(.rdp-selected .rdp-day_button) {
+    background-color: hsl(var(--muted));
+  }
+  .dark .rdp-wrap .rdp-chevron {
+    fill: hsl(var(--muted-foreground));
+  }
+}

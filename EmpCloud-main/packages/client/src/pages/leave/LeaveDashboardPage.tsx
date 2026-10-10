@@ -1,0 +1,1462 @@
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import { usePermissions } from "@/lib/use-permissions";
+import { Link } from "react-router-dom";
+import { CalendarDays, PlusCircle, Clock, CheckCircle2, XCircle, Ban, AlertCircle, Settings2, Filter, X as XIcon, Pencil, Trash2 } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { leaveTypeLabel } from "@/lib/leave-type-label";
+import { useStickyLocationFilter } from "@/lib/use-sticky-location";
+import { useViewModeStore, hasAnyAdminPermission } from "@/lib/use-view-mode";
+
+// Kept for any legacy callers — page now uses permission-based gates below.
+const HR_ROLES = ["hr_admin", "org_admin", "super_admin", "manager"];
+
+interface LeaveBalance {
+  id: number;
+  leave_type_id: number;
+  year: number;
+  total_allocated: number;
+  extra_allocated?: number;
+  total_used: number;
+  period_used?: number;
+  total_carry_forward: number;
+  balance: number;
+  // Server-derived period-aware fields (#059):
+  available_now?: number;
+  period_quota?: number;
+  fiscal_year_label?: string;
+}
+
+interface LeaveType {
+  id: number;
+  name: string;
+  code: string;
+  color: string | null;
+  is_paid: boolean;
+  is_active: boolean | number;
+}
+
+export default function LeaveDashboardPage() {
+  const { t, i18n } = useTranslation();
+  const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  // RBAC v1 — admin-side leave UI (settings link, pending approvals queue)
+  // shows for users with the corresponding leave permissions, regardless of
+  // primary role. A custom role granting leave:approve / view_all /
+  // manage_policies / override_balance unlocks the admin sections.
+  const { has: hasPerm, permissions } = usePermissions();
+  const isAdmin = hasPerm(
+    "leave:view_all",
+    "leave:view_team",
+    "leave:approve",
+    "leave:manage_policies",
+    "leave:override_balance",
+  ) || (user ? HR_ROLES.includes(user.role) : false);
+
+  // Personal sections (own balances, Apply Leave, own applications) belong to
+  // the employee/self experience. Mirror the DashboardLayout view-toggle rule:
+  // a non-HR user with admin permissions gets the "My view / Admin view"
+  // toggle, and when they're in Admin view we hide their personal leave.
+  // Everyone else (HR users without a toggle, plain employees) is treated as
+  // self view — their behaviour is unchanged.
+  const isHRUser = user ? HR_ROLES.includes(user.role) : false;
+  const viewMode = useViewModeStore((s) => s.viewMode);
+  const hasAdminPerms = hasAnyAdminPermission(permissions);
+  const showViewToggle = !isHRUser && hasAdminPerms;
+  const isSelfView = !(showViewToggle && viewMode === "admin");
+  const [showApply, setShowApply] = useState(false);
+  // When set, the apply form is in edit-mode and submits PATCH instead of POST.
+  // Cleared whenever the form closes or completes successfully.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  // ID of the leave application the user is being asked to confirm cancellation
+  // for. null = dialog closed.
+  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
+  // Transient success banner. Set by mutation onSuccess callbacks; cleared
+  // after 3 s by a useEffect.
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!successMsg) return;
+    const id = setTimeout(() => setSuccessMsg(null), 3000);
+    return () => clearTimeout(id);
+  }, [successMsg]);
+  // #1578 — form renders below the fold on smaller viewports, so clicks on
+  // Apply Leave looked like nothing happened. Scroll the form into view once
+  // it mounts so the user sees the apply flow.
+  const applyFormRef = useRef<HTMLFormElement | null>(null);
+  useEffect(() => {
+    if (showApply) {
+      applyFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showApply]);
+
+  const { data: balances = [], isLoading: loadingBalances } = useQuery<LeaveBalance[]>({
+    queryKey: ["leave-balances"],
+    queryFn: () => api.get("/leave/balances").then((r) => r.data.data),
+  });
+
+  const { data: leaveTypes = [] } = useQuery<LeaveType[]>({
+    queryKey: ["leave-types"],
+    queryFn: () => api.get("/leave/types").then((r) => r.data.data),
+  });
+
+  // Subset of `leaveTypes` whose active policy applies to the current user's
+  // gender (server-side filter on `leave_policies.applicable_gender`). Used
+  // for the employee balance cards and the apply-leave dropdown so a male
+  // employee does not see Maternity, etc. The unfiltered `leaveTypes` is
+  // still passed to admin sub-components so they can resolve names for any
+  // leave type when reviewing other employees' applications.
+  const { data: myLeaveTypes = [] } = useQuery<LeaveType[]>({
+    queryKey: ["leave-types-me"],
+    queryFn: () => api.get("/leave/types/me").then((r) => r.data.data),
+  });
+
+  const [form, setForm] = useState({
+    leave_type_id: 0,
+    start_date: "",
+    end_date: "",
+    days_count: 1,
+    is_half_day: false,
+    half_day_type: "" as string | null,
+    reason: "",
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Always recompute days_count from (start_date, end_date, is_half_day)
+  // so the displayed number stays in sync regardless of the order the
+  // user fills the dates. Previously the recompute lived only inside
+  // each date input's onChange and read stale closure state -- typing
+  // the end date before the start date left the field at the initial
+  // value of 1.
+  //
+  // This is INCLUSIVE CALENDAR days. The server further subtracts the
+  // applicant's shift week-offs and mandatory holidays at submission
+  // time, so this number may be larger than the final debit. The hint
+  // below the field tells the user that.
+  useEffect(() => {
+    if (form.is_half_day) {
+      if (form.days_count !== 0.5) setForm((f) => ({ ...f, days_count: 0.5 }));
+      return;
+    }
+    if (!form.start_date || !form.end_date) return;
+    const start = new Date(form.start_date);
+    const end = new Date(form.end_date);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return;
+    const diff = Math.floor(
+      (Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) -
+        Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) /
+        (1000 * 60 * 60 * 24),
+    ) + 1;
+    if (diff > 0 && diff !== form.days_count) {
+      setForm((f) => ({ ...f, days_count: diff }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.start_date, form.end_date, form.is_half_day]);
+
+  const resetForm = () => {
+    setForm({ leave_type_id: 0, start_date: "", end_date: "", days_count: 1, is_half_day: false, half_day_type: "", reason: "" });
+    setEditingId(null);
+    setFormError(null);
+  };
+
+  const invalidateLeaveQueries = () => {
+    qc.invalidateQueries({ queryKey: ["leave-balances"] });
+    qc.invalidateQueries({ queryKey: ["leave-applications"] });
+    qc.invalidateQueries({ queryKey: ["leave-applications-me"] });
+    qc.invalidateQueries({ queryKey: ["leave-applications-pending"] });
+  };
+
+  const applyLeave = useMutation({
+    mutationFn: (data: typeof form) =>
+      api.post("/leave/applications", {
+        ...data,
+        half_day_type: data.half_day_type || null,
+      }).then((r) => r.data.data),
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      setShowApply(false);
+      resetForm();
+      setSuccessMsg(t('leave.dashboard.appliedSuccess'));
+    },
+  });
+
+  const updateLeave = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: typeof form }) =>
+      api.patch(`/leave/applications/${id}`, {
+        ...data,
+        half_day_type: data.half_day_type || null,
+      }).then((r) => r.data.data),
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      setShowApply(false);
+      resetForm();
+      setSuccessMsg(t('leave.dashboard.updatedSuccess'));
+    },
+  });
+
+  const cancelLeave = useMutation({
+    mutationFn: (id: number) =>
+      api.put(`/leave/applications/${id}/cancel`).then((r) => r.data.data),
+    onSuccess: () => {
+      invalidateLeaveQueries();
+      setSuccessMsg(t('leave.dashboard.cancelledSuccess'));
+    },
+  });
+
+  // Start editing a pending leave. Prefills the apply form, switches it to
+  // edit-mode, and scrolls the form into view via the existing showApply effect.
+  const startEdit = (app: any) => {
+    setForm({
+      leave_type_id: Number(app.leave_type_id) || 0,
+      start_date: String(app.start_date).slice(0, 10),
+      end_date: String(app.end_date).slice(0, 10),
+      days_count: Number(app.days_count) || 1,
+      is_half_day: Boolean(app.is_half_day),
+      half_day_type: app.half_day_type ?? "",
+      reason: app.reason ?? "",
+    });
+    setEditingId(Number(app.id));
+    setFormError(null);
+    setShowApply(true);
+  };
+
+  // #1822 — Bug 25: previously this silently `return`-ed when fields were
+  // missing, which made a click on Submit feel like nothing happened. Now
+  // we surface a clear inline message and also enforce end_date >=
+  // start_date before sending anything to the server. The fields all carry
+  // `required` HTML attributes too, so the browser's native bubble fires
+  // first; this state is the fallback for cases where the user manages to
+  // bypass that (e.g. JS-driven submit, stale form).
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!form.leave_type_id || form.leave_type_id === 0) {
+      setFormError("Please select a leave type.");
+      return;
+    }
+    if (!form.start_date) {
+      setFormError("Start date is required.");
+      return;
+    }
+    if (!form.end_date) {
+      setFormError("End date is required.");
+      return;
+    }
+    if (new Date(form.end_date) < new Date(form.start_date)) {
+      setFormError("End date cannot be before start date.");
+      return;
+    }
+    if (!form.reason || !form.reason.trim()) {
+      setFormError("Please describe the reason for your leave.");
+      return;
+    }
+    if (editingId !== null) {
+      updateLeave.mutate({ id: editingId, data: form });
+    } else {
+      applyLeave.mutate(form);
+    }
+  };
+
+  return (
+    <div>
+      {successMsg && (
+        <div
+          role="status"
+          className="fixed top-4 right-4 z-[60] flex items-start gap-3 max-w-sm rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/40 px-4 py-3 shadow-lg animate-in fade-in slide-in-from-top-2"
+        >
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400 mt-0.5" />
+          <div className="flex-1 text-[13px] font-medium text-green-800 dark:text-green-200">{successMsg}</div>
+          <button
+            type="button"
+            onClick={() => setSuccessMsg(null)}
+            aria-label={t('common.close')}
+            className="text-green-700 dark:text-green-300 hover:text-green-900"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('leave.dashboard.title')}</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">{t('leave.dashboard.subtitle')}</p>
+        </div>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <Link
+              to="/leave/settings"
+              className="flex items-center gap-2 bg-muted text-muted-foreground px-4 py-2 rounded-md text-[13px] font-medium hover:bg-muted transition-colors"
+            >
+              <Settings2 className="h-4 w-4" /> {t('leave.dashboard.leaveSettings')}
+            </Link>
+          )}
+          {isSelfView && (
+            <button
+              type="button"
+              onClick={() => setShowApply(true)}
+              className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700 cursor-pointer transition-colors"
+            >
+              <PlusCircle className="h-4 w-4" /> {t('leave.applyLeave')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Balance Cards — #1409: render one card per active leave type so
+          employees see all configured types even when a balance row has not
+          yet been initialized (missing rows render as zero).
+          Hidden in Admin view — own leave balance is personal/self-only. */}
+      {isSelfView && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-6">
+        {loadingBalances ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-card rounded-lg border border-border p-4 animate-pulse">
+                <div className="h-4 w-24 bg-muted rounded mb-3" />
+                <div className="h-7 w-16 bg-muted rounded mb-2" />
+                <div className="h-2 w-full bg-muted rounded-full" />
+              </div>
+            ))}
+          </>
+        ) : myLeaveTypes.filter((lt) => Boolean(lt.is_active)).length === 0 ? (
+          <div className="col-span-full text-center text-muted-foreground py-8">
+            {t('leave.noTypes')}
+          </div>
+        ) : (
+          myLeaveTypes
+            .filter((lt) => Boolean(lt.is_active))
+            // #1612 — when the org has multiple leave_types rows with the same
+            // display name (e.g. an old "SL" + a re-added "SL_440514" both
+            // labelled "Sick Leave"), the dashboard rendered one card per row
+            // even though the apply form deduped by name. Users saw two
+            // identical labels with conflicting balances and assumed the
+            // counts were wrong. Dedupe by display name here too, preferring
+            // the type that actually has an allocated balance so we surface
+            // the row the policy is attached to.
+            .filter((lt, _i, arr) => {
+              const sameName = arr.filter((x) => x.name === lt.name);
+              if (sameName.length === 1) return true;
+              const withAllocation = sameName.find((x) => {
+                const b = balances.find((bb) => bb.leave_type_id === x.id);
+                return b && Number(b.total_allocated) > 0;
+              });
+              return withAllocation ? withAllocation.id === lt.id : sameName[0].id === lt.id;
+            })
+            .map((type) => {
+              const bal = balances.find((b) => b.leave_type_id === type.id);
+              const typeColor = type.color ?? "#6366f1";
+              const allocated = Number(bal?.total_allocated ?? 0);
+              const extra = Number(bal?.extra_allocated ?? 0);
+              const used = Number(bal?.total_used ?? 0);
+              const carry = Number(bal?.total_carry_forward ?? 0);
+              // Prefer server-derived `available_now` (period-aware) over the
+              // legacy `balance` column. Fall back to `balance` for older
+              // payloads so the dashboard never shows blank.
+              const balance = Number(bal?.available_now ?? bal?.balance ?? 0);
+              const periodQuota = Number(bal?.period_quota ?? 0);
+              const periodUsed = Number(bal?.period_used ?? 0);
+              const fyLabel = bal?.fiscal_year_label;
+              const total = allocated + carry + extra;
+              return (
+                <div
+                  key={type.id}
+                  className="bg-card rounded-lg border border-border p-4 flex flex-col h-full hover:border-brand-400 transition-colors duration-150"
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <div
+                      className="h-3 w-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: typeColor }}
+                    />
+                    <h3 className="text-sm font-bold text-foreground truncate">
+                      {leaveTypeLabel(t, type)}
+                    </h3>
+                  </div>
+                  {/* Disambiguate the badge label: when the leave type's
+                      name itself is "Paid" / "Unpaid" (rendered above),
+                      a bare "PAID" badge underneath read like the same
+                      word repeated. Render "Paid leave" / "Unpaid leave"
+                      so the badge is clearly classifying the type rather
+                      than echoing it (#1649). The redundant "LEAVE
+                      BALANCE" companion label is dropped — the big
+                      number + "days" already conveys the same. */}
+                  <div className="flex items-center gap-2 mb-3 ml-6">
+                    {/* Defensive: the form's `is_paid` checkbox defaults to true,
+                        so leave types literally named "Unpaid" / "LWP" / "Loss
+                        of Pay" / "Without Pay" frequently get saved with
+                        is_paid=true and then render with the green "PAID
+                        LEAVE" badge — the opposite of what the admin meant.
+                        Detect those name patterns and prefer them over the
+                        flag at render time. (#1649) */}
+                    {(() => {
+                      const isUnpaidByName = /\b(unpaid|lwp|without\s*pay|loss\s*of\s*pay)\b/i.test(
+                        type.name || "",
+                      );
+                      const showAsPaid = type.is_paid && !isUnpaidByName;
+                      return (
+                        <span
+                          className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-md ${
+                            showAsPaid ? "bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {showAsPaid
+                            ? t('leave.dashboard.paid')
+                            : t('leave.dashboard.unpaid')}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <div className="text-3xl font-bold tabular-nums text-foreground mb-1">
+                    {balance} <span className="text-sm font-normal text-muted-foreground">{t('leave.dashboard.days')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t('leave.dashboard.usedOfAllocated', { used, allocated })}
+                    {extra !== 0 && (
+                      <span className={extra > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                        {" "}({extra > 0 ? "+" : ""}{extra} extra)
+                      </span>
+                    )}
+                    {carry > 0 && ` ${t('leave.dashboard.carrySuffix', { carry })}`}
+                  </p>
+                  {/* Period-aware footer (#059): when the policy uses a non-annual
+                      accrual we show how many days are available in the current
+                      period vs the period quota. Hides cleanly for annual policies
+                      that don't expose period_quota. */}
+                  {periodQuota > 0 && periodQuota !== allocated && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      This period: {Math.max(0, periodQuota - periodUsed)} / {periodQuota}
+                      {fyLabel && ` · FY ${fyLabel}`}
+                    </p>
+                  )}
+                  {/* Progress bar represents *available* leave (matching the
+                      big headline number), not consumed leave. Previously the
+                      width was driven by used/total, which read the opposite
+                      of the headline — a card showing "3 days" appeared empty
+                      while a card showing "0 days" appeared partly filled.
+                      Use period quota as the denominator when the policy
+                      has a sub-annual accrual so the bar tracks the small
+                      "X / Y" footer; otherwise fall back to total allocated. */}
+                  {(() => {
+                    const usePeriod = periodQuota > 0 && periodQuota !== allocated;
+                    const num = usePeriod
+                      ? Math.max(0, periodQuota - periodUsed)
+                      : balance;
+                    const den = usePeriod ? periodQuota : total;
+                    const pct = den > 0 ? Math.min(100, (num / den) * 100) : 0;
+                    return (
+                      <div className="mt-auto pt-3">
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full transition-all"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: typeColor,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })
+        )}
+      </div>
+      )}
+
+      {/* Quick Apply Form — self view only (own leave application). */}
+      {isSelfView && showApply && (
+        <form
+          ref={applyFormRef}
+          onSubmit={handleSubmit}
+          className="bg-card rounded-lg border border-border p-4 mb-6 scroll-mt-4"
+        >
+          <h2 className="text-base font-semibold text-foreground mb-3">
+            {editingId !== null ? t('leave.dashboard.editTitle') : t('leave.dashboard.applyTitle')}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t('leave.leaveType')} <span className="text-red-500">*</span></label>
+              <select
+                value={form.leave_type_id}
+                onChange={(e) => setForm({ ...form, leave_type_id: Number(e.target.value) })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                required
+              >
+                <option value={0} disabled>{t('leave.dashboard.selectType')}</option>
+                {myLeaveTypes
+                  .filter((lt) => Boolean(lt.is_active))
+                  // #1917 / #1924 — When the org has duplicate leave_types rows
+                  // with the same display name (e.g. an old "SL" with 0 quota
+                  // and a re-added "Sick Leave" with the actual policy), this
+                  // dropdown previously kept the FIRST occurrence by name. The
+                  // dashboard balance card prefers the row that has an
+                  // allocated balance, so users saw "6 days available" but the
+                  // form silently submitted the empty type id, getting back
+                  // "No leave balance allocated". Use the same prefer-allocated
+                  // dedup logic as the card to keep the two views aligned.
+                  .filter((lt, _i, arr) => {
+                    const sameName = arr.filter((x) => x.name === lt.name);
+                    if (sameName.length === 1) return true;
+                    const withAllocation = sameName.find((x) => {
+                      const b = balances.find((bb) => bb.leave_type_id === x.id);
+                      return b && Number(b.total_allocated) > 0;
+                    });
+                    return withAllocation ? withAllocation.id === lt.id : sameName[0].id === lt.id;
+                  })
+                  .map((lt) => (
+                    <option key={lt.id} value={lt.id}>{leaveTypeLabel(t, lt)}</option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t('leave.startDate')} <span className="text-red-500">*</span></label>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t('leave.endDate')} <span className="text-red-500">*</span></label>
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t('leave.dashboard.numberOfDays')} <span className="text-red-500">*</span></label>
+              <input
+                type="number"
+                value={form.days_count}
+                readOnly
+                tabIndex={-1}
+                className="w-full px-3 py-2 border border-border rounded-md text-[13px] bg-muted text-muted-foreground cursor-not-allowed"
+                title="Auto-computed from the date range. The server adjusts the actual debit to exclude your week-offs and mandatory holidays."
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Auto-computed from the date range. Week-offs and mandatory holidays in this span will not be debited from your balance.
+              </p>
+            </div>
+            <div className="flex items-end gap-4">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={form.is_half_day}
+                  onChange={(e) => setForm({ ...form, is_half_day: e.target.checked, half_day_type: e.target.checked ? "first_half" : "" })}
+                  className="rounded border-border"
+                />
+                {t('leave.dashboard.halfDay')}
+              </label>
+              {form.is_half_day && (
+                <select
+                  value={form.half_day_type ?? ""}
+                  onChange={(e) => setForm({ ...form, half_day_type: e.target.value })}
+                  className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+                >
+                  <option value="first_half">{t('leave.dashboard.firstHalf')}</option>
+                  <option value="second_half">{t('leave.dashboard.secondHalf')}</option>
+                </select>
+              )}
+            </div>
+            <div className="md:col-span-2 lg:col-span-3">
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t('leave.reason')} <span className="text-red-500">*</span></label>
+              <textarea
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                rows={2}
+                required
+              />
+            </div>
+          </div>
+          {formError && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300 text-[13px] rounded-md px-4 py-3 mt-4">
+              {formError}
+            </div>
+          )}
+          {(applyLeave.isError || updateLeave.isError) && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300 text-[13px] rounded-md px-4 py-3 mt-4">
+              {(() => {
+                const err = editingId !== null ? updateLeave.error : applyLeave.error;
+                const msg = err && typeof err === "object" && "response" in err
+                  ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message
+                  : null;
+                return msg || t('leave.dashboard.submitError');
+              })()}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowApply(false);
+                resetForm();
+                applyLeave.reset();
+                updateLeave.reset();
+              }}
+              className="px-4 py-2 text-[13px] text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={applyLeave.isPending || updateLeave.isPending}
+              className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              <CalendarDays className="h-4 w-4" />
+              {editingId !== null
+                ? (updateLeave.isPending ? t('leave.dashboard.saving') : t('leave.dashboard.saveChanges'))
+                : (applyLeave.isPending ? t('leave.dashboard.submitting') : t('leave.dashboard.submitApplication'))}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Pending Approvals — Admin/Manager View */}
+      {isAdmin && <PendingApprovals leaveTypes={leaveTypes} />}
+
+      {/* Recent Applications — the current user's OWN leave applications, so
+          only shown in self view (hidden in Admin view). */}
+      {isSelfView && (
+        <>
+          <RecentApplications
+            leaveTypes={leaveTypes}
+            locale={i18n.language}
+            onEdit={startEdit}
+            onCancel={(id: number) => setCancelTargetId(id)}
+            cancelPending={cancelLeave.isPending}
+          />
+
+          {/* Legend */}
+          <div className="flex items-center gap-6 text-xs text-muted-foreground mt-6">
+            <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-amber-500" /> {t('common.pending')}</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> {t('common.approved')}</span>
+            <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-500" /> {t('common.rejected')}</span>
+          </div>
+        </>
+      )}
+
+      <ConfirmDialog
+        open={cancelTargetId !== null}
+        title={t('leave.dashboard.cancelConfirmTitle')}
+        description={
+          cancelLeave.isError
+            ? ((cancelLeave.error as { response?: { data?: { error?: { message?: string } } } })
+                ?.response?.data?.error?.message) || t('leave.dashboard.cancelFailed')
+            : t('leave.dashboard.cancelConfirm')
+        }
+        confirmText={t('leave.dashboard.cancelAction')}
+        cancelText={t('common.close')}
+        variant="danger"
+        loading={cancelLeave.isPending}
+        onConfirm={() => {
+          if (cancelTargetId !== null) {
+            cancelLeave.mutate(cancelTargetId, {
+              onSuccess: () => {
+                setCancelTargetId(null);
+                cancelLeave.reset();
+              },
+              // On error: keep dialog open so the inline message is visible.
+            });
+          }
+        }}
+        onCancel={() => {
+          setCancelTargetId(null);
+          cancelLeave.reset();
+        }}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recent Applications sub-component
+// ---------------------------------------------------------------------------
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; icon: typeof Clock }> = {
+  pending: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-300", icon: Clock },
+  approved: { bg: "bg-green-50 dark:bg-green-950/40", text: "text-green-700 dark:text-green-300", icon: CheckCircle2 },
+  rejected: { bg: "bg-red-50 dark:bg-red-950/40", text: "text-red-700 dark:text-red-300", icon: XCircle },
+  cancelled: { bg: "bg-muted", text: "text-muted-foreground", icon: Ban },
+};
+
+function RecentApplications({
+  leaveTypes,
+  locale,
+  onEdit,
+  onCancel,
+  cancelPending,
+}: {
+  leaveTypes: LeaveType[];
+  locale: string;
+  onEdit: (app: any) => void;
+  onCancel: (id: number) => void;
+  cancelPending: boolean;
+}) {
+  const { t } = useTranslation();
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState<number | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const hasActiveFilter =
+    !!statusFilter || leaveTypeFilter != null || !!dateFrom || !!dateTo;
+  // #1613 — Recent Applications used to fetch only 5 rows, so each new
+  // application pushed older ones off the table and there was no way to view
+  // history without leaving the dashboard. Fetch a larger window (50) and
+  // make the body scroll vertically; also surface a "View all" link to the
+  // full Applications page for users who want pagination.
+  const { data, isLoading } = useQuery({
+    queryKey: ["leave-applications-me", statusFilter, leaveTypeFilter, dateFrom, dateTo],
+    queryFn: () =>
+      api
+        .get("/leave/applications/me", {
+          params: {
+            page: 1,
+            per_page: 50,
+            status: statusFilter || undefined,
+            leave_type_id: leaveTypeFilter || undefined,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined,
+          },
+        })
+        .then((r) => r.data),
+    // Override the global 30s staleTime -- switching status tabs (Pending /
+    // Approved / etc.) needs to hit the server every time so HR sees the
+    // current state, not a 30-second-stale snapshot.
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  const applications = data?.data || [];
+  const total = Number(data?.meta?.total ?? applications.length);
+  const getTypeName = (id: number) => {
+    const lt = leaveTypes.find((x) => x.id === id);
+    return lt ? leaveTypeLabel(t, lt) : "-";
+  };
+  const statusLabel = (s: string) => {
+    const key = s === "pending" ? "common.pending" : s === "approved" ? "common.approved" : s === "rejected" ? "common.rejected" : s === "cancelled" ? "common.cancelled" : "";
+    return key ? t(key) : s;
+  };
+
+  return (
+    <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-border">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('leave.dashboard.recentTitle')}</h2>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border transition-colors ${hasActiveFilter ? "border-brand-300 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300" : "border-border text-muted-foreground hover:bg-muted"}`}
+            >
+              <Filter className="h-3.5 w-3.5" /> Filters{hasActiveFilter ? " ·" : ""}
+            </button>
+            {total > applications.length && (
+              <Link to="/leave/applications" className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium">
+                {t('common.viewAll')} ({total})
+              </Link>
+            )}
+          </div>
+        </div>
+        {showFilters && (
+          <div className="flex flex-wrap items-end gap-2 mt-3">
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              >
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Leave type</label>
+              <select
+                value={leaveTypeFilter ?? ""}
+                onChange={(e) => setLeaveTypeFilter(e.target.value ? Number(e.target.value) : undefined)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              >
+                <option value="">All</option>
+                {leaveTypes.map((lt) => (
+                  <option key={lt.id} value={lt.id}>{leaveTypeLabel(t, lt)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">From</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">To</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              />
+            </div>
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={() => { setStatusFilter(""); setLeaveTypeFilter(undefined); setDateFrom(""); setDateTo(""); }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5"
+              >
+                <XIcon className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="max-h-96 overflow-y-auto">
+      <table className="min-w-full">
+        <thead className="bg-muted/50 border-b border-border">
+          <tr>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.typeHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.datesHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.daysHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.statusHeader')}</th>
+            <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5 w-24 whitespace-nowrap">{t('leave.dashboard.actionsHeader')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {isLoading ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-4 py-2.5"><div className="h-4 w-20 bg-muted rounded" /></td>
+                  <td className="px-4 py-2.5"><div className="h-4 w-32 bg-muted rounded" /></td>
+                  <td className="px-4 py-2.5"><div className="h-4 w-8 bg-muted rounded" /></td>
+                  <td className="px-4 py-2.5"><div className="h-4 w-16 bg-muted rounded-full" /></td>
+                  <td className="px-4 py-2.5"><div className="h-4 w-12 bg-muted rounded ml-auto" /></td>
+                </tr>
+              ))}
+            </>
+          ) : applications.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">{t('leave.dashboard.noApplications')}</td>
+            </tr>
+          ) : (
+            applications.map((app: any) => {
+              const style = STATUS_STYLES[app.status] || STATUS_STYLES.pending;
+              const Icon = style.icon;
+              return (
+                <tr key={app.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-4 py-2.5 text-[13px] font-medium text-foreground">
+                    {getTypeName(app.leave_type_id)}
+                    {/* #1609 — guard with Boolean(): MySQL tinyint returns 0/1,
+                        and `0 && ...` evaluates to 0 which React renders as a
+                        literal "0" right after the leave label ("Sick Leave0"). */}
+                    {Boolean(app.is_half_day) && <span className="ml-1 text-xs text-muted-foreground">{t('leave.dashboard.halfSuffix')}</span>}
+                  </td>
+                  <td className="px-4 py-2.5 text-[13px] text-muted-foreground">
+                    {new Date(app.start_date).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })} &mdash; {new Date(app.end_date).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" })}
+                  </td>
+                  <td className="px-4 py-2.5 text-[13px] text-muted-foreground font-medium">
+                    {Number(app.days_count)}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-medium ${style.bg} ${style.text}`}>
+                      <Icon className="h-3 w-3" /> {statusLabel(app.status)}
+                    </span>
+                    {/* Backend joins leave_approvals → approver name + acted_at.
+                        Only render the sub-line when the leave has actually
+                        been acted on (approved or rejected) AND the join
+                        populated both fields. Pending rows have nothing to
+                        show; the "CONCAT(NULL, ' ', NULL)" pattern returns
+                        the literal string "null null" on some MySQL configs
+                        when there's no matching leave_approvals row, so we
+                        guard with a real name check, not just truthiness. */}
+                    {(app.status === "approved" || app.status === "rejected") &&
+                      app.approver_name &&
+                      app.approver_name.trim() &&
+                      app.approver_name.trim().toLowerCase() !== "null null" && (
+                        <div className="mt-1 text-[11px] text-muted-foreground leading-tight">
+                          {t(app.status === "approved" ? 'leave.dashboard.approvedBy' : 'leave.dashboard.rejectedBy', { name: app.approver_name.trim() })}
+                          {app.approval_date && (
+                            <span className="text-muted-foreground">
+                              {" · "}
+                              {new Date(app.approval_date).toLocaleDateString(locale, { day: "2-digit", month: "short" })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                  </td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap w-24">
+                    {app.status === "pending" ? (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onEdit(app)}
+                          aria-label={t('leave.dashboard.editAction')}
+                          title={t('leave.dashboard.editAction')}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-brand-700 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors cursor-pointer"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onCancel(Number(app.id))}
+                          disabled={cancelPending}
+                          aria-label={t('leave.dashboard.cancelAction')}
+                          title={t('leave.dashboard.cancelAction')}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pending Approvals sub-component — shows all pending leave requests for admins
+// ---------------------------------------------------------------------------
+
+function PendingApprovals({ leaveTypes }: { leaveTypes: LeaveType[] }) {
+  const { t, i18n } = useTranslation();
+  const qc = useQueryClient();
+  const [remarks, setRemarks] = useState("");
+  const [actionId, setActionId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ type: string; success: number; failed: number; error?: string } | null>(null);
+  // Status tab — admins were losing visibility of a leave once they approved
+  // it because this panel only ever showed `status=pending`. Tabs let them
+  // see approved/rejected/cancelled or the full list without leaving the
+  // dashboard. Defaults to pending to preserve the original primary action.
+  const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected" | "cancelled" | "all">("pending");
+  // Extra filters for the manager queue: department / location / leave type
+  // / employee name search / date range. Hidden behind a toggle so the
+  // panel doesn't dominate the dashboard until the user opts in.
+  const [showFilters, setShowFilters] = useState(false);
+  const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
+  const [locationId, setLocationId] = useStickyLocationFilter();
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState<number | undefined>(undefined);
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(() => setAppliedSearch(search.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [search]);
+  const hasExtraFilters =
+    departmentId != null || locationId != null || leaveTypeFilter != null ||
+    !!appliedSearch || !!dateFrom || !!dateTo;
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["org-departments"],
+    queryFn: () => api.get("/organizations/me/departments").then((r) => r.data.data),
+    staleTime: 60000,
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: ["org-locations"],
+    queryFn: () => api.get("/organizations/me/locations").then((r) => r.data.data),
+    staleTime: 60000,
+  });
+
+  // #1411 — show server errors instead of silently swallowing them
+  const [actionError, setActionError] = useState<string | null>(null);
+  const extractErr = (err: any) =>
+    err?.response?.data?.error?.message ||
+    err?.response?.data?.message ||
+    err?.message ||
+    t('leave.dashboard.actionFailed');
+
+  const { data, isLoading } = useQuery({
+    queryKey: [
+      "leave-applications-pending",
+      statusFilter,
+      departmentId,
+      locationId,
+      leaveTypeFilter,
+      appliedSearch,
+      dateFrom,
+      dateTo,
+    ],
+    queryFn: () =>
+      api
+        .get("/leave/applications", {
+          params: {
+            page: 1,
+            per_page: 50,
+            status: statusFilter === "all" ? undefined : statusFilter,
+            department_id: departmentId || undefined,
+            location_id: locationId || undefined,
+            leave_type_id: leaveTypeFilter || undefined,
+            search: appliedSearch || undefined,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined,
+          },
+        })
+        .then((r) => r.data),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  const approveMut = useMutation({
+    mutationFn: ({ id, remarks: r }: { id: number; remarks: string }) =>
+      api.put(`/leave/applications/${id}/approve`, { remarks: r }).then((res) => res.data.data),
+    onSuccess: () => {
+      // Approving from Pending Approvals must also refresh the dashboard's
+      // Recent Applications panel (its own query key) and the admin Employee
+      // Leaves view, otherwise the freshly-approved row stays stale until
+      // the user manually reloads.
+      qc.invalidateQueries({ queryKey: ["leave-applications-pending"] });
+      qc.invalidateQueries({ queryKey: ["leave-balances"] });
+      qc.invalidateQueries({ queryKey: ["leave-applications"] });
+      qc.invalidateQueries({ queryKey: ["leave-applications-me"] });
+      qc.invalidateQueries({ queryKey: ["my-leave-balance"] });
+      qc.invalidateQueries({ queryKey: ["admin-employee-leaves"] });
+      setActionId(null);
+      setRemarks("");
+      setActionError(null);
+    },
+    onError: (err: any) => setActionError(extractErr(err)),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: ({ id, remarks: r }: { id: number; remarks: string }) =>
+      api.put(`/leave/applications/${id}/reject`, { remarks: r }).then((res) => res.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leave-applications-pending"] });
+      qc.invalidateQueries({ queryKey: ["leave-applications"] });
+      qc.invalidateQueries({ queryKey: ["leave-applications-me"] });
+      qc.invalidateQueries({ queryKey: ["admin-employee-leaves"] });
+      setActionId(null);
+      setRemarks("");
+      setActionError(null);
+    },
+    onError: (err: any) => setActionError(extractErr(err)),
+  });
+
+  const applications = data?.data || [];
+  const getTypeName = (id: number) => {
+    const lt = leaveTypes.find((x) => x.id === id);
+    return lt ? leaveTypeLabel(t, lt) : "-";
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === applications.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(applications.map((a: any) => a.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: "approve" | "reject") => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    setBulkResult(null);
+    let success = 0;
+    let failed = 0;
+
+    const ids = Array.from(selectedIds);
+    // BUG-23: the catch used to swallow the error entirely (`catch {}`), so a
+    // failed reject/approve showed only "N failed" with no reason and the row
+    // silently stayed pending. Capture the first error message so the result
+    // banner can tell the user WHY it failed (e.g. a validation error from the
+    // server) instead of failing silently.
+    let firstError: string | undefined;
+    for (const id of ids) {
+      try {
+        if (action === "approve") {
+          await api.put(`/leave/applications/${id}/approve`, { remarks: "" });
+        } else {
+          await api.put(`/leave/applications/${id}/reject`, { remarks: "" });
+        }
+        success++;
+      } catch (err: any) {
+        failed++;
+        if (!firstError) firstError = extractErr(err);
+      }
+    }
+
+    setBulkProcessing(false);
+    setBulkResult({ type: action, success, failed, error: firstError });
+    setSelectedIds(new Set());
+    qc.invalidateQueries({ queryKey: ["leave-applications-pending"] });
+    qc.invalidateQueries({ queryKey: ["leave-balances"] });
+    qc.invalidateQueries({ queryKey: ["leave-applications"] });
+    qc.invalidateQueries({ queryKey: ["leave-applications-me"] });
+    qc.invalidateQueries({ queryKey: ["my-leave-balance"] });
+    qc.invalidateQueries({ queryKey: ["admin-employee-leaves"] });
+
+    // Auto-clear result after 5 seconds
+    setTimeout(() => setBulkResult(null), 5000);
+  };
+
+  // Don't bail out when the result set is empty — with status tabs, an
+  // empty Pending tab still needs to render so the user can switch to
+  // Approved/Rejected/All. The table handles the empty state inline.
+  if (isLoading) return null;
+
+  const allSelected = applications.length > 0 && selectedIds.size === applications.length;
+
+  // Color the panel border/header based on the active filter so the visual
+  // cue matches the data being shown — the original amber styling implied
+  // "needs action" which is misleading once the user is browsing approved
+  // or rejected leaves.
+  const panelTone =
+    statusFilter === "pending"
+      ? { border: "border-amber-200", header: "border-amber-200 bg-amber-50 dark:bg-amber-950/40", icon: "text-amber-500" }
+      : statusFilter === "approved"
+        ? { border: "border-green-200", header: "border-green-200 bg-green-50 dark:bg-green-950/40", icon: "text-green-600 dark:text-green-400" }
+        : statusFilter === "rejected"
+          ? { border: "border-red-200", header: "border-red-200 bg-red-50 dark:bg-red-950/40", icon: "text-red-600 dark:text-red-400" }
+          : { border: "border-border", header: "border-border bg-muted", icon: "text-muted-foreground" };
+
+  const tabs: { key: typeof statusFilter; label: string }[] = [
+    { key: "pending", label: t('common.pending') },
+    { key: "approved", label: t('common.approved') },
+    { key: "rejected", label: t('common.rejected') },
+    { key: "cancelled", label: t('common.cancelled') },
+    { key: "all", label: t('common.all') },
+  ];
+
+  const headingText =
+    statusFilter === "pending"
+      ? t('leave.dashboard.pendingTitle')
+      : statusFilter === "approved"
+        ? t('common.approved')
+        : statusFilter === "rejected"
+          ? t('common.rejected')
+          : statusFilter === "cancelled"
+            ? t('common.cancelled')
+            : t('common.all');
+
+  return (
+    <div className={`bg-card rounded-lg border ${panelTone.border} overflow-hidden mb-6`}>
+      <div className={`px-6 py-4 border-b ${panelTone.header}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <AlertCircle className={`h-5 w-5 ${panelTone.icon}`} />
+            {headingText} (<span className="tabular-nums">{applications.length}</span>)
+          </h2>
+          {selectedIds.size > 0 && statusFilter === "pending" && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{t('leave.dashboard.selectedCount', { count: selectedIds.size })}</span>
+              <button
+                onClick={() => handleBulkAction("approve")}
+                disabled={bulkProcessing}
+                className="text-[11px] bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50 font-medium"
+              >
+                {bulkProcessing ? t('leave.dashboard.processing') : t('leave.dashboard.approveSelected')}
+              </button>
+              <button
+                onClick={() => handleBulkAction("reject")}
+                disabled={bulkProcessing}
+                className="text-[11px] bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 disabled:opacity-50 font-medium"
+              >
+                {bulkProcessing ? t('leave.dashboard.processing') : t('leave.dashboard.rejectSelected')}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1 mt-3 -mb-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setStatusFilter(tab.key);
+                setSelectedIds(new Set());
+                setActionId(null);
+                setBulkResult(null);
+              }}
+              className={`px-3 py-1 text-[11px] rounded-md font-medium transition-colors ${
+                statusFilter === tab.key
+                  ? "bg-foreground text-background"
+                  : "bg-card border border-border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            className={`ml-2 inline-flex items-center gap-1 px-3 py-1 text-[11px] rounded-md font-medium border transition-colors ${
+              hasExtraFilters
+                ? "bg-brand-50 dark:bg-brand-950/40 border-brand-300 text-brand-700 dark:text-brand-300"
+                : "bg-card border-border text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <Filter className="h-3 w-3" /> Filters{hasExtraFilters ? " ·" : ""}
+          </button>
+        </div>
+        {showFilters && (
+          <div className="flex flex-wrap items-end gap-2 mt-3">
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Search employee</label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Name, email, code"
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px] w-52"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Department</label>
+              <select
+                value={departmentId ?? ""}
+                onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : undefined)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              >
+                <option value="">All</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Location</label>
+              <select
+                value={locationId ?? ""}
+                onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : undefined)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              >
+                <option value="">All</option>
+                {locations.map((l: any) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">Leave type</label>
+              <select
+                value={leaveTypeFilter ?? ""}
+                onChange={(e) => setLeaveTypeFilter(e.target.value ? Number(e.target.value) : undefined)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              >
+                <option value="">All</option>
+                {leaveTypes.map((lt) => (
+                  <option key={lt.id} value={lt.id}>{leaveTypeLabel(t, lt)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">From</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-medium text-muted-foreground uppercase mb-1">To</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="bg-card text-foreground px-2 py-1.5 border border-border rounded-md text-[11px]"
+              />
+            </div>
+            {hasExtraFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDepartmentId(undefined);
+                  setLocationId(undefined);
+                  setLeaveTypeFilter(undefined);
+                  setSearch("");
+                  setAppliedSearch("");
+                  setDateFrom("");
+                  setDateTo("");
+                }}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5"
+              >
+                <XIcon className="h-3 w-3" /> Clear
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {bulkResult && (
+        <div className={`px-6 py-3 text-sm font-medium ${
+          bulkResult.type === "approve" ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300" : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
+        }`}>
+          {bulkResult.type === "approve"
+            ? t('leave.dashboard.bulkApproved', { count: bulkResult.success })
+            : t('leave.dashboard.bulkRejected', { count: bulkResult.success })}
+          {bulkResult.failed > 0 && ` ${t('leave.dashboard.bulkFailed', { count: bulkResult.failed })}`}
+          {bulkResult.error && (
+            <span className="block mt-0.5 font-normal text-red-600 dark:text-red-400">{bulkResult.error}</span>
+          )}
+        </div>
+      )}
+
+      {/* #1411 — surface server errors on approve/reject actions */}
+      {actionError && (
+        <div className="flex items-start justify-between gap-3 px-6 py-3 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm border-t border-red-200">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="text-xs text-red-500 hover:text-red-700"
+          >
+            {t('leave.dashboard.dismiss')}
+          </button>
+        </div>
+      )}
+
+      <table className="min-w-full">
+        <thead className="bg-muted border-b border-border">
+          <tr>
+            {statusFilter === "pending" && (
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5 w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded border-border text-brand-600 dark:text-brand-400 focus:ring-brand-500"
+                />
+              </th>
+            )}
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.employeeHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.typeHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.datesHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.daysHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('leave.dashboard.reasonHeader')}</th>
+            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">
+              {statusFilter === "pending"
+                ? t('leave.dashboard.actionsHeader')
+                : t('leave.dashboard.statusHeader')}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {applications.length === 0 && !isLoading && (
+            <tr>
+              <td colSpan={statusFilter === "pending" ? 7 : 6} className="px-6 py-8 text-center text-muted-foreground text-sm">
+                {t('leave.dashboard.noApplications')}
+              </td>
+            </tr>
+          )}
+          {applications.map((app: any) => (
+            <tr key={app.id} className={`hover:bg-muted/50 transition-colors ${selectedIds.has(app.id) ? "bg-brand-50/50" : ""}`}>
+              {statusFilter === "pending" && (
+                <td className="px-4 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(app.id)}
+                    onChange={() => toggleSelect(app.id)}
+                    className="rounded border-border text-brand-600 dark:text-brand-400 focus:ring-brand-500"
+                  />
+                </td>
+              )}
+              <td className="px-4 py-2.5 text-[13px] font-medium text-foreground">
+                {app.user_first_name ? `${app.user_first_name} ${app.user_last_name || ""}` : t('leave.dashboard.userFallback', { id: app.user_id })}
+              </td>
+              <td className="px-4 py-2.5 text-[13px] text-muted-foreground">
+                {getTypeName(app.leave_type_id)}
+                {/* #1609 — see comment above; MySQL returns 0/1 not boolean */}
+                {Boolean(app.is_half_day) && <span className="ml-1 text-xs text-muted-foreground">{t('leave.dashboard.halfSuffix')}</span>}
+              </td>
+              <td className="px-4 py-2.5 text-[13px] text-muted-foreground">
+                {new Date(app.start_date).toLocaleDateString(i18n.language, { day: "2-digit", month: "short", year: "numeric" })} &mdash; {new Date(app.end_date).toLocaleDateString(i18n.language, { day: "2-digit", month: "short", year: "numeric" })}
+              </td>
+              <td className="px-4 py-2.5 text-[13px] text-muted-foreground font-medium">{Number(app.days_count)}</td>
+              <td
+                className="px-6 py-4 text-sm text-muted-foreground max-w-xs truncate cursor-help"
+                title={app.reason || ""}
+              >
+                {app.reason}
+              </td>
+              <td className="px-4 py-2.5">
+                {statusFilter !== "pending" ? (
+                  (() => {
+                    const style = STATUS_STYLES[app.status] || STATUS_STYLES.pending;
+                    const Icon = style.icon;
+                    return (
+                      <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md ${style.bg} ${style.text}`}>
+                        <Icon className="h-3 w-3" /> {app.status}
+                      </span>
+                    );
+                  })()
+                ) : actionId === app.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder={t('leave.dashboard.remarksPlaceholder')}
+                      className="bg-card text-foreground px-2 py-1 border border-border rounded text-xs flex-1 min-w-[120px]"
+                    />
+                    <button
+                      onClick={() => approveMut.mutate({ id: app.id, remarks })}
+                      disabled={approveMut.isPending}
+                      className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {t('leave.approve')}
+                    </button>
+                    <button
+                      onClick={() => rejectMut.mutate({ id: app.id, remarks })}
+                      disabled={rejectMut.isPending}
+                      className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {t('leave.reject')}
+                    </button>
+                    <button
+                      onClick={() => { setActionId(null); setRemarks(""); }}
+                      className="text-xs text-muted-foreground px-1"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setActionId(app.id)}
+                    className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-3 py-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 font-medium"
+                  >
+                    {t('leave.dashboard.review')}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

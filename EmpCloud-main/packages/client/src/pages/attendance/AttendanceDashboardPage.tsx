@@ -1,0 +1,1532 @@
+import { useQuery } from "@tanstack/react-query";
+import api from "@/api/client";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Navigate, Link } from "react-router-dom";
+import { Users, UserCheck, UserX, Clock, AlertTriangle, Filter, Download, ClipboardCheck, SlidersHorizontal, X, FileSpreadsheet, BarChart3, Loader2, Eye, Fingerprint, Smartphone, Monitor, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { AiBadge } from "@/components/AiBadge";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { usePermissions } from "@/lib/use-permissions";
+import { useStickyLocationFilter } from "@/lib/use-sticky-location";
+import { showToast } from "@/components/ui/Toast";
+import * as XLSX from "xlsx";
+
+export default function AttendanceDashboardPage() {
+  const { t, i18n } = useTranslation();
+  // RBAC v1 — gate by permissions, not by role. A user with a custom role
+  // granting attendance:view_team / view_all / approve_regularization / manage
+  // is allowed onto this dashboard even if their primary role is "employee".
+  const { has: hasPerm } = usePermissions();
+  const canSeeDashboard = hasPerm(
+    "attendance:view_team",
+    "attendance:view_all",
+    "attendance:approve_regularization_team", "attendance:approve_regularization_all",
+    "attendance:manage",
+  );
+
+  // Pure self-service users (no team / admin attendance perm) bounce to their
+  // personal page.
+  if (!canSeeDashboard) {
+    return <Navigate to="/attendance/my" replace />;
+  }
+  const [page, setPage] = useState(1);
+  const now = new Date();
+  const [month, setMonth] = useState(() => now.getMonth() + 1);
+  const [year, setYear] = useState(() => now.getFullYear());
+  const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
+  const [locationId, setLocationId] = useStickyLocationFilter();
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  // Applied date range — only used in the query after clicking Apply
+  const [appliedDateFrom, setAppliedDateFrom] = useState("");
+  const [appliedDateTo, setAppliedDateTo] = useState("");
+  // Debounced search term so we don't fire a request on every keystroke.
+  const [appliedSearch, setAppliedSearch] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setAppliedSearch(searchTerm.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [searchTerm]);
+
+  // Month names use the active i18n locale so the dropdown follows the UI language.
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Date(2000, i).toLocaleString(i18n.language, { month: "long" }),
+  }));
+
+  // Fetch departments for the dropdown filter
+  const { data: departments = [] } = useQuery({
+    queryKey: ["org-departments"],
+    queryFn: () => api.get("/organizations/me/departments").then((r) => r.data.data),
+    staleTime: 60000,
+  });
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ["org-locations"],
+    queryFn: () => api.get("/organizations/me/locations").then((r) => r.data.data),
+    staleTime: 60000,
+  });
+
+  // Standard system roles — `users.role` is the primary role slug. Custom
+  // role assignments live on `user_roles` and aren't part of the primary
+  // role string, so this filter scopes by the user's main role only.
+  const ROLE_OPTIONS: { value: string; label: string }[] = [
+    { value: "employee", label: "Employee" },
+    { value: "manager", label: "Manager" },
+    { value: "hr_admin", label: "HR Admin" },
+    { value: "org_admin", label: "Org Admin" },
+    { value: "super_admin", label: "Super Admin" },
+  ];
+
+  const { data: dashboard, isLoading: dashLoading } = useQuery({
+    queryKey: ["attendance-dashboard"],
+    queryFn: () => api.get("/attendance/dashboard").then((r) => r.data.data),
+  });
+
+  const { data: recordsData, isLoading: recLoading } = useQuery({
+    queryKey: ["attendance-records", page, month, year, departmentId, locationId, roleFilter, appliedSearch, appliedDateFrom, appliedDateTo],
+    queryFn: () => {
+      const params: Record<string, any> = {
+        page,
+        department_id: departmentId || undefined,
+        location_id: locationId || undefined,
+        role: roleFilter || undefined,
+        search: appliedSearch || undefined,
+      };
+      if (appliedDateFrom) {
+        params.date_from = appliedDateFrom;
+        if (appliedDateTo) params.date_to = appliedDateTo;
+      } else {
+        params.month = month;
+        params.year = year;
+      }
+      return api.get("/attendance/records", { params }).then((r) => r.data);
+    },
+  });
+
+  const handleClearFilters = () => {
+    const n = new Date();
+    setMonth(n.getMonth() + 1);
+    setYear(n.getFullYear());
+    setDepartmentId(undefined);
+    setLocationId(undefined);
+    setRoleFilter("");
+    setSearchTerm("");
+    setAppliedSearch("");
+    setDateFrom("");
+    setDateTo("");
+    setAppliedDateFrom("");
+    setAppliedDateTo("");
+    setPage(1);
+  };
+
+  const records = recordsData?.data || [];
+  const meta = recordsData?.meta;
+
+  // Export modal state
+  const [showExport, setShowExport] = useState(false);
+  const [exportType, setExportType] = useState<"detailed" | "consolidated">("detailed");
+  const [exportMonth, setExportMonth] = useState(month);
+  const [exportYear, setExportYear] = useState(year);
+  const [exportDept, setExportDept] = useState<string>("");
+  const [exportLoc, setExportLoc] = useState<string>("");
+  const [exportEmployee] = useState<string>("");
+  const [exportStatus, setExportStatus] = useState<string>("");
+  const [exportDateFrom, setExportDateFrom] = useState("");
+  const [exportDateTo, setExportDateTo] = useState("");
+  const [exportUseRange, setExportUseRange] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Punch-timeline detail modal — single source of truth at the page level
+  // so only one modal can be open at a time and ESC / backdrop dismissal
+  // is straightforward.
+  const [detailRecord, setDetailRecord] = useState<any | null>(null);
+
+  const fmtMin = (m: number) => `${Math.floor(m / 60)}h ${m % 60}m`;
+  const fmtDate = (v: any) => v ? new Date(v).toLocaleDateString() : "";
+  const fmtTime = (v: any) => v ? new Date(v).toLocaleTimeString() : "";
+
+  const downloadExcel = (headers: string[], rows: any[][], filename: string, sheetName = "Report") => {
+    const data = rows.map((row) => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = headers.map((h) => {
+      const maxLen = Math.max(h.length, ...rows.map((r) => String(r[headers.indexOf(h)] ?? "").length));
+      return { wch: Math.min(maxLen + 2, 40) };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, filename.replace(/\.csv$/, ".xlsx"));
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params: Record<string, any> = {};
+      if (exportUseRange && exportDateFrom) {
+        params.date_from = exportDateFrom;
+        if (exportDateTo) params.date_to = exportDateTo;
+      } else {
+        params.month = exportMonth;
+        params.year = exportYear;
+      }
+      if (exportDept) params.department_id = exportDept;
+      if (exportLoc) params.location_id = exportLoc;
+      if (exportEmployee) params.employee_id = exportEmployee;
+      if (exportStatus && exportType === "detailed") params.status = exportStatus;
+
+      if (exportType === "detailed") {
+        const res = await api.get("/attendance/export", { params });
+        const data = res.data.data || [];
+        const headers = [
+          "Employee", "Emp Code", "Email", "Department", "Location", "Designation", "Date",
+          "Shift", "Shift Start", "Shift End", "Check In", "Check Out",
+          "Worked", "Overtime", "Late", "Early Departure", "Status",
+        ];
+        const rows = data.map((r: any) => [
+          `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+          r.emp_code || "", r.email || "", r.department_name || "", r.location_name || "", r.designation || "",
+          fmtDate(r.date), r.shift_name || "-", r.shift_start || "", r.shift_end || "",
+          fmtTime(r.check_in), fmtTime(r.check_out),
+          r.worked_minutes != null ? fmtMin(r.worked_minutes) : "",
+          r.overtime_minutes ? fmtMin(r.overtime_minutes) : "0",
+          r.late_minutes ? fmtMin(r.late_minutes) : "0",
+          r.early_departure_minutes ? fmtMin(r.early_departure_minutes) : "0",
+          r.status?.replace(/_/g, " ") || "",
+        ]);
+        const label = exportUseRange ? `${exportDateFrom}_to_${exportDateTo}` : `${months.find((m) => m.value === exportMonth)?.label}_${exportYear}`;
+        downloadExcel(headers, rows, `attendance_detailed_${label}.xlsx`, "Detailed Report");
+      } else {
+        const res = await api.get("/attendance/export/consolidated", { params });
+        const { report = [], total_working_days } = res.data.data || {};
+        const headers = [
+          "Employee", "Emp Code", "Email", "Department", "Location", "Designation",
+          "Present Days", "Half Days", "Absent Days", "Leave Days", "Late Count",
+          "Total Worked", "Avg Daily Worked", "Total Overtime", "Total Late", "Total Early Departure",
+          `Attendance % (of ${total_working_days} days)`,
+        ];
+        const rows = report.map((r: any) => {
+          const present = Number(r.present_days) + Number(r.half_days) * 0.5;
+          const pct = total_working_days > 0 ? ((present / total_working_days) * 100).toFixed(1) + "%" : "-";
+          return [
+            `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+            r.emp_code || "", r.email || "", r.department_name || "", r.location_name || "", r.designation || "",
+            r.present_days, r.half_days, r.absent_days, r.leave_days, r.late_count,
+            fmtMin(Number(r.total_worked_minutes)),
+            r.avg_worked_minutes ? fmtMin(Math.round(Number(r.avg_worked_minutes))) : "-",
+            fmtMin(Number(r.total_overtime_minutes)),
+            fmtMin(Number(r.total_late_minutes)),
+            fmtMin(Number(r.total_early_departure_minutes)),
+            pct,
+          ];
+        });
+        downloadExcel(headers, rows, `attendance_consolidated_${months.find((m) => m.value === exportMonth)?.label}_${exportYear}.xlsx`, "Consolidated Report");
+      }
+      setShowExport(false);
+    } catch (err) {
+      showToast("error", t('attendance.export.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  type BreakdownCategory = "total" | "present" | "absent" | "on_leave" | "late";
+  const [breakdownOpen, setBreakdownOpen] = useState<BreakdownCategory | null>(null);
+  // "Attendance Details" modal — date filter + client-side pagination. The
+  // /dashboard/breakdown endpoint already supports ?date=YYYY-MM-DD; paging is
+  // client-side because the tab counts depend on the full per-status arrays the
+  // endpoint returns in a single shot.
+  const toDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayStr = toDateStr(now);
+  const [breakdownDate, setBreakdownDate] = useState(todayStr);
+  const [breakdownPage, setBreakdownPage] = useState(1);
+  const [breakdownSearch, setBreakdownSearch] = useState("");
+  const [breakdownDept, setBreakdownDept] = useState("");
+  const [breakdownLoc, setBreakdownLoc] = useState("");
+  const BREAKDOWN_PAGE_SIZE = 10;
+
+  // "Late" tab range control inside the Attendance Details modal. Presets:
+  // today (default — today's late list), month (current calendar month), d15/d30
+  // (rolling windows), custom (from–to). "today" shows the day list (check-in
+  // time + minutes late); the ranges show each employee's TOTAL late days over
+  // the window. Same "late" definition as the daily cards (late_minutes>0 on a
+  // present/half_day/checked_in row).
+  type LatePreset = "today" | "month" | "d15" | "d30" | "custom";
+  const [latePreset, setLatePreset] = useState<LatePreset>("today");
+  const [lateCustomFrom, setLateCustomFrom] = useState(todayStr);
+  const [lateCustomTo, setLateCustomTo] = useState(todayStr);
+  const shiftDays = (n: number) => { const d = new Date(now); d.setDate(d.getDate() + n); return toDateStr(d); };
+  // Resolve the active preset to a concrete [from,to] window (YYYY-MM-DD).
+  const lateRange: { from: string; to: string } =
+    latePreset === "month"
+      ? { from: toDateStr(new Date(now.getFullYear(), now.getMonth(), 1)), to: toDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0)) }
+      : latePreset === "d15"
+      ? { from: shiftDays(-14), to: todayStr }
+      : latePreset === "d30"
+      ? { from: shiftDays(-29), to: todayStr }
+      : latePreset === "custom"
+      ? { from: lateCustomFrom || todayStr, to: lateCustomTo || todayStr }
+      : { from: todayStr, to: todayStr };
+  const lateIsRange = breakdownOpen === "late" && latePreset !== "today";
+  // Range mode → per-employee late-day counts over the window.
+  const { data: lateCounts, isLoading: lateCountsLoading } = useQuery({
+    queryKey: ["attendance-late-counts", lateRange.from, lateRange.to],
+    queryFn: () =>
+      api
+        .get("/attendance/late-counts", { params: { date_from: lateRange.from, date_to: lateRange.to } })
+        .then((r) => r.data.data),
+    enabled: lateIsRange,
+  });
+  // "Today" preset → today's late list (check-in time + minutes late), fixed to
+  // today regardless of the shared breakdown date the other tabs use.
+  const { data: lateTodayData, isLoading: lateTodayLoading } = useQuery({
+    queryKey: ["attendance-dashboard-breakdown", todayStr],
+    queryFn: () =>
+      api
+        .get("/attendance/dashboard/breakdown", { params: { date: todayStr } })
+        .then((r) => r.data.data),
+    enabled: breakdownOpen === "late" && latePreset === "today",
+  });
+
+  const { data: breakdown, isLoading: breakdownLoading } = useQuery({
+    queryKey: ["attendance-dashboard-breakdown", breakdownDate],
+    queryFn: () =>
+      api
+        .get("/attendance/dashboard/breakdown", { params: { date: breakdownDate || undefined } })
+        .then((r) => r.data.data),
+    enabled: breakdownOpen !== null,
+  });
+
+  // Open the modal from a stat card — always start on today (so the modal
+  // matches the cards, which show today's numbers) and on the first page.
+  const openBreakdown = (category: BreakdownCategory) => {
+    setBreakdownDate(todayStr);
+    setBreakdownPage(1);
+    setBreakdownSearch("");
+    setBreakdownDept("");
+    setBreakdownLoc("");
+    // Late tab always opens on the "today" preset.
+    setLatePreset("today");
+    setLateCustomFrom(todayStr);
+    setLateCustomTo(todayStr);
+    setBreakdownOpen(category);
+  };
+
+  const stats: {
+    label: string;
+    value: number | string;
+    icon: any;
+    color: string;
+    category: BreakdownCategory | null;
+  }[] = [
+    { label: t('attendance.totalEmployees'), value: dashboard?.total_employees ?? "-", icon: Users, color: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300", category: "total" },
+    { label: t('attendance.presentToday'), value: dashboard?.present ?? "-", icon: UserCheck, color: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300", category: "present" },
+    { label: t('attendance.absentToday'), value: dashboard?.absent ?? "-", icon: UserX, color: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300", category: "absent" },
+    { label: t('attendance.lateToday'), value: dashboard?.late ?? "-", icon: AlertTriangle, color: "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300", category: "late" },
+    { label: t('attendance.onLeave'), value: dashboard?.on_leave ?? "-", icon: Clock, color: "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300", category: "on_leave" },
+  ];
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-2">{t('attendance.dashboardTitle')} <AiBadge label={t('attendance.aiInsights')} /></h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{t('attendance.dashboardSubtitle')}</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
+        {stats.map((s) => {
+          const isClickable = s.category !== null;
+          const content = (
+            <>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-md ${s.color}`}>
+                <s.icon className="h-4 w-4" />
+              </span>
+              <p className="mt-2.5 text-2xl font-semibold tabular-nums leading-none text-foreground">{dashLoading ? <span className="inline-block h-6 w-10 bg-muted rounded animate-pulse" /> : s.value}</p>
+              <p className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{s.label}</p>
+            </>
+          );
+          return isClickable ? (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => openBreakdown(s.category!)}
+              className="bg-card rounded-lg border border-border p-3 text-left hover:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors duration-150"
+              aria-label={s.label}
+            >
+              {content}
+            </button>
+          ) : (
+            <div key={s.label} className="bg-card rounded-lg border border-border p-3">
+              {content}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Breakdown Modal ("Attendance Details") */}
+      {breakdownOpen !== null && (() => {
+        // Late tab in a range preset shows per-employee late-day COUNTS over the
+        // window; the "today" preset (and all other tabs) show the day-scoped list.
+        const isLateRange = lateIsRange; // breakdownOpen === "late" && preset !== "today"
+        const isLateToday = breakdownOpen === "late" && latePreset === "today";
+        const rangeLabel = lateRange.from === lateRange.to ? lateRange.from : `${lateRange.from} – ${lateRange.to}`;
+        const listLoading = isLateRange ? lateCountsLoading : isLateToday ? lateTodayLoading : breakdownLoading;
+        const fmtDuration = (min: number) => (min >= 60 ? `${Math.floor(min / 60)}h ${min % 60}m` : `${min}m`);
+        // Active tab's employees. "total" stitches present + absent + on_leave
+        // together (late is a subset of present, so it isn't appended again).
+        const tabList: any[] = isLateRange
+          ? (lateCounts?.employees ?? [])
+          : isLateToday
+          ? (lateTodayData?.late ?? [])
+          : breakdownOpen === "total"
+          ? [
+              ...(breakdown?.present ?? []),
+              ...(breakdown?.absent ?? []),
+              ...(breakdown?.on_leave ?? []),
+            ]
+          : (breakdown?.[breakdownOpen] ?? []);
+        // Department / location dropdown options — distinct values present in
+        // the current tab, sorted, so we never show an option with no rows.
+        const deptOptions = Array.from(
+          new Set(tabList.map((e: any) => e.department).filter(Boolean) as string[])
+        ).sort((a, b) => a.localeCompare(b));
+        const locOptions = Array.from(
+          new Set(tabList.map((e: any) => e.location).filter(Boolean) as string[])
+        ).sort((a, b) => a.localeCompare(b));
+
+        // Client-side filter: search (name/email/dept) + department + location.
+        const q = breakdownSearch.trim().toLowerCase();
+        const filteredList = tabList.filter((emp: any) => {
+          if (q) {
+            const matches =
+              `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.toLowerCase().includes(q) ||
+              String(emp.email ?? "").toLowerCase().includes(q) ||
+              String(emp.department ?? "").toLowerCase().includes(q);
+            if (!matches) return false;
+          }
+          if (breakdownDept && emp.department !== breakdownDept) return false;
+          if (breakdownLoc && emp.location !== breakdownLoc) return false;
+          return true;
+        });
+        const totalPages = Math.max(1, Math.ceil(filteredList.length / BREAKDOWN_PAGE_SIZE));
+        // Clamp so a shrinking list (after a tab/date/search change) can never
+        // strand us on an out-of-range page.
+        const safePage = Math.min(breakdownPage, totalPages);
+        const pageList = filteredList.slice((safePage - 1) * BREAKDOWN_PAGE_SIZE, safePage * BREAKDOWN_PAGE_SIZE);
+        const statusLabel = (emp: any) => {
+          const s = emp.attendance_status;
+          if (s === "present" || s === "checked_in") return { label: t('attendance.present'), color: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300" };
+          if (s === "half_day") return { label: t('attendance.statusHalfDay'), color: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300" };
+          if (s === "on_leave") return { label: t('attendance.onLeave'), color: "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300" };
+          return { label: t('attendance.absent'), color: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300" };
+        };
+
+        // Export exactly what's on screen — the current tab + department /
+        // location / search filters — as an .xlsx via the shared helper.
+        const exportBreakdown = () => {
+          if (isLateRange) {
+            const headers = [
+              t('common.name'),
+              t('attendance.department'),
+              t('attendance.location'),
+              t('attendance.monthlyLate.lateDaysCol'),
+              t('attendance.monthlyLate.totalLateCol'),
+            ];
+            const rows = filteredList.map((emp: any) => [
+              `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim(),
+              emp.department ?? "",
+              emp.location ?? "",
+              Number(emp.late_count) || 0,
+              Number(emp.total_late_minutes) > 0 ? fmtDuration(Number(emp.total_late_minutes)) : "",
+            ]);
+            downloadExcel(headers, rows, `late-${lateRange.from}_${lateRange.to}.xlsx`, "Late");
+            return;
+          }
+          const headers = [
+            t('common.name'),
+            t('attendance.department'),
+            t('attendance.location'),
+            t('common.status'),
+            t('attendance.checkIn'),
+            t('attendance.breakdown.lateBy'),
+          ];
+          const rows = filteredList.map((emp: any) => [
+            `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim(),
+            emp.department ?? "",
+            emp.location ?? "",
+            statusLabel(emp).label,
+            emp.check_in_time ? new Date(emp.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+            Number(emp.late_minutes) > 0 ? `${emp.late_minutes} min` : "",
+          ]);
+          downloadExcel(headers, rows, `attendance-${breakdownOpen}-${breakdownDate}.xlsx`, "Attendance");
+        };
+
+        return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setBreakdownOpen(null)}
+        >
+          <div
+            className="bg-card rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-foreground">{t('attendance.breakdown.title', { date: breakdownOpen === "late" ? rangeLabel : (breakdown?.date ?? breakdownDate) })}</h3>
+              <div className="flex items-center gap-3">
+                {breakdownOpen !== "late" && (
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="breakdown-date" className="text-xs font-medium text-muted-foreground whitespace-nowrap">{t('attendance.breakdown.dateLabel')}</label>
+                    <input
+                      id="breakdown-date"
+                      type="date"
+                      value={breakdownDate}
+                      max={todayStr}
+                      onChange={(e) => { setBreakdownDate(e.target.value); setBreakdownPage(1); }}
+                      className="bg-card text-foreground px-2.5 py-1.5 border border-border rounded-md text-[13px]"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={exportBreakdown}
+                  disabled={listLoading || filteredList.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={t('attendance.breakdown.export')}
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t('attendance.breakdown.export')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBreakdownOpen(null)}
+                  className="text-muted-foreground hover:text-muted-foreground"
+                  aria-label={t('attendance.breakdown.close')}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="px-6 pt-4 border-b border-border">
+              <div className="flex gap-1 flex-wrap">
+                {(
+                  [
+                    { key: "total", label: t('attendance.breakdown.tabAll'), color: "text-blue-700 dark:text-blue-300 border-blue-600" },
+                    { key: "present", label: t('attendance.present'), color: "text-green-700 dark:text-green-300 border-green-600" },
+                    { key: "absent", label: t('attendance.absent'), color: "text-red-700 dark:text-red-300 border-red-600" },
+                    { key: "on_leave", label: t('attendance.onLeave'), color: "text-purple-700 dark:text-purple-300 border-purple-600" },
+                    { key: "late", label: t('attendance.late'), color: "text-yellow-700 dark:text-yellow-300 border-yellow-600" },
+                  ] as const
+                ).map((tab) => {
+                  const count = tab.key === "total"
+                    ? (breakdown?.present?.length ?? 0) + (breakdown?.absent?.length ?? 0) + (breakdown?.on_leave?.length ?? 0)
+                    : tab.key === "late" && isLateRange
+                    ? (lateCounts?.total_late_employees ?? 0)
+                    : tab.key === "late" && isLateToday
+                    ? (lateTodayData?.late?.length ?? 0)
+                    : breakdown?.[tab.key]?.length ?? 0;
+                  const tabLoading = tab.key === "late"
+                    ? (isLateRange ? lateCountsLoading : isLateToday ? lateTodayLoading : breakdownLoading)
+                    : breakdownLoading;
+                  const active = breakdownOpen === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => { setBreakdownOpen(tab.key); setBreakdownPage(1); }}
+                      className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-px ${
+                        active ? tab.color : "text-muted-foreground border-transparent hover:text-foreground"
+                      }`}
+                    >
+                      {tab.label} ({tabLoading ? "…" : count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {breakdownOpen === "late" && (
+              <div className="px-6 pt-3 flex flex-wrap items-center gap-2">
+                {([
+                  { k: "today", label: t('attendance.monthlyLate.presetToday') },
+                  { k: "month", label: t('attendance.monthlyLate.presetMonth') },
+                  { k: "d15", label: t('attendance.monthlyLate.preset15') },
+                  { k: "d30", label: t('attendance.monthlyLate.preset30') },
+                  { k: "custom", label: t('attendance.monthlyLate.presetCustom') },
+                ] as const).map((p) => (
+                  <button
+                    key={p.k}
+                    type="button"
+                    onClick={() => { setLatePreset(p.k); setBreakdownPage(1); }}
+                    className={`px-3 py-1 text-[12px] font-medium rounded-md border transition-colors ${
+                      latePreset === p.k
+                        ? "border-brand-400 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {latePreset === "custom" && (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      aria-label={t('attendance.monthlyLate.rangeFrom')}
+                      value={lateCustomFrom}
+                      max={lateCustomTo || todayStr}
+                      onChange={(e) => { setLateCustomFrom(e.target.value); setBreakdownPage(1); }}
+                      className="bg-card text-foreground px-2 py-1 border border-border rounded-md text-[12px]"
+                    />
+                    <span className="text-muted-foreground text-[12px]">–</span>
+                    <input
+                      type="date"
+                      aria-label={t('attendance.monthlyLate.rangeTo')}
+                      value={lateCustomTo}
+                      min={lateCustomFrom || undefined}
+                      max={todayStr}
+                      onChange={(e) => { setLateCustomTo(e.target.value); setBreakdownPage(1); }}
+                      className="bg-card text-foreground px-2 py-1 border border-border rounded-md text-[12px]"
+                    />
+                  </div>
+                )}
+                {latePreset !== "today" && latePreset !== "custom" && (
+                  <span className="text-[11px] text-muted-foreground">{rangeLabel}</span>
+                )}
+              </div>
+            )}
+            <div className="px-6 py-3 border-b border-border space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={breakdownSearch}
+                  onChange={(e) => { setBreakdownSearch(e.target.value); setBreakdownPage(1); }}
+                  placeholder={t('attendance.breakdown.searchPlaceholder')}
+                  className="bg-card text-foreground w-full pl-9 pr-3 py-2 border border-border rounded-md text-[13px]"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={breakdownDept}
+                  onChange={(e) => { setBreakdownDept(e.target.value); setBreakdownPage(1); }}
+                  className="flex-1 min-w-[10rem] px-3 py-2 border border-border rounded-md text-[13px] bg-card"
+                  aria-label={t('attendance.department')}
+                >
+                  <option value="">{t('attendance.breakdown.allDepartments')}</option>
+                  {deptOptions.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  value={breakdownLoc}
+                  onChange={(e) => { setBreakdownLoc(e.target.value); setBreakdownPage(1); }}
+                  className="flex-1 min-w-[10rem] px-3 py-2 border border-border rounded-md text-[13px] bg-card"
+                  aria-label={t('attendance.location')}
+                >
+                  <option value="">{t('attendance.breakdown.allLocations')}</option>
+                  {locOptions.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4">
+              {listLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredList.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-12">
+                  {tabList.length === 0
+                    ? t('attendance.breakdown.noEmployeesInCategory')
+                    : t('attendance.breakdown.noSearchResults')}
+                </p>
+              ) : isLateRange ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider border-b border-border">
+                      <th className="py-2 font-semibold">{t('common.name')}</th>
+                      <th className="py-2 font-semibold">{t('attendance.department')}</th>
+                      <th className="py-2 font-semibold whitespace-nowrap">{t('attendance.monthlyLate.lateDaysCol')}</th>
+                      <th className="py-2 font-semibold whitespace-nowrap">{t('attendance.monthlyLate.totalLateCol')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageList.map((emp: any) => (
+                      <tr key={emp.user_id} className="border-b border-border last:border-0">
+                        <td className="py-3">
+                          <div className="font-medium text-foreground">
+                            {emp.first_name} {emp.last_name}
+                            {emp.emp_code ? <span className="ml-2 text-xs text-muted-foreground">{emp.emp_code}</span> : null}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{emp.email}</div>
+                        </td>
+                        <td className="py-3 text-muted-foreground">{emp.department || "—"}</td>
+                        <td className="py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold whitespace-nowrap ${
+                              Number(emp.late_count) > 0
+                                ? "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {t(Number(emp.late_count) === 1 ? 'attendance.monthlyLate.lateDaysOne' : 'attendance.monthlyLate.lateDaysOther', { count: Number(emp.late_count) || 0 })}
+                          </span>
+                        </td>
+                        <td className="py-3 text-muted-foreground whitespace-nowrap">{Number(emp.total_late_minutes) > 0 ? fmtDuration(Number(emp.total_late_minutes)) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wider border-b border-border">
+                      <th className="py-2 font-semibold">{t('common.name')}</th>
+                      <th className="py-2 font-semibold">{t('attendance.department')}</th>
+                      <th className="py-2 font-semibold whitespace-nowrap">{t('attendance.checkIn')}</th>
+                      {breakdownOpen === "total" && <th className="py-2 font-semibold">{t('common.status')}</th>}
+                      {breakdownOpen === "late" && <th className="py-2 font-semibold">{t('attendance.breakdown.lateBy')}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageList.map((emp: any) => {
+                      const s = breakdownOpen === "total" ? statusLabel(emp) : null;
+                      return (
+                        <tr key={emp.id} className="border-b border-border last:border-0">
+                          <td className="py-3">
+                            <div className="font-medium text-foreground">{emp.first_name} {emp.last_name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.email}</div>
+                          </td>
+                          <td className="py-3 text-muted-foreground">{emp.department || "—"}</td>
+                          <td className="py-3 text-muted-foreground">{emp.check_in_time ? new Date(emp.check_in_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                          {breakdownOpen === "total" && s && (
+                            <td className="py-3">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${s.color}`}>{s.label}</span>
+                            </td>
+                          )}
+                          {breakdownOpen === "late" && (
+                            <td className="py-3 text-yellow-700 dark:text-yellow-300 font-medium">{emp.late_minutes} {t('attendance.breakdown.minSuffix')}</td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {/* Pagination footer — always shown when there are results so the
+                control is visibly part of the modal even for a single page. */}
+            {!listLoading && filteredList.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+                <p className="text-[13px] tabular-nums text-muted-foreground">{t('attendance.pagination', { page: safePage, totalPages, total: filteredList.length })}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setBreakdownPage(Math.max(1, safePage - 1))}
+                    disabled={safePage === 1}
+                    className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors"
+                  >
+                    {t('attendance.previous')}
+                  </button>
+                  <button
+                    onClick={() => setBreakdownPage(Math.min(totalPages, safePage + 1))}
+                    disabled={safePage >= totalPages}
+                    className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors"
+                  >
+                    {t('attendance.next')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        );
+      })()}
+
+
+      {/* Quick Links */}
+      <div className="flex gap-2.5 mb-4">
+        <Link
+          to="/attendance/regularizations"
+          className="inline-flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-md text-[13px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <ClipboardCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          {t('attendance.regularizationRequests')}
+        </Link>
+        <Link
+          to="/attendance/shifts"
+          className="inline-flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-md text-[13px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <SlidersHorizontal className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+          {t('attendance.shiftManagement')}
+        </Link>
+      </div>
+
+      {/* Date & Department Filters */}
+      <div className="bg-card rounded-lg border border-border p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('attendance.filters')}</h3>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t('attendance.month')}</label>
+            <select
+              value={month}
+              onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }}
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+            >
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t('attendance.year')}</label>
+            <select
+              value={year}
+              onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+            >
+              {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t('attendance.department')}</label>
+            <select
+              value={departmentId ?? ""}
+              onChange={(e) => { setDepartmentId(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+            >
+              <option value="">{t('attendance.allDepartments')}</option>
+              {departments.map((d: any) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
+            <select
+              value={locationId ?? ""}
+              onChange={(e) => { setLocationId(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+            >
+              <option value="">All locations</option>
+              {locations.map((l: any) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Role</label>
+            <select
+              value={roleFilter}
+              onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px]"
+            >
+              <option value="">All roles</option>
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Search employee</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Name, email, code"
+              className="bg-card text-foreground px-3 py-2 border border-border rounded-md text-[13px] w-52"
+            />
+          </div>
+          <div className="border-l border-border pl-3">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">{t('attendance.dateFrom')} &mdash; {t('attendance.dateTo')}</label>
+            {/* Single composite control replaces the legacy from + to pair.
+                Apply still drives `appliedDateFrom` / `appliedDateTo` so the
+                server contract is unchanged. */}
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onApply={(f, to2) => {
+                setDateFrom(f);
+                setDateTo(to2);
+                if (f) {
+                  setAppliedDateFrom(f);
+                  setAppliedDateTo(to2);
+                  setPage(1);
+                } else {
+                  // Clear path — drop the applied range so the query falls
+                  // back to month/year scope.
+                  setAppliedDateFrom("");
+                  setAppliedDateTo("");
+                  setPage(1);
+                }
+              }}
+              allowEmpty
+            />
+          </div>
+          <button
+            onClick={handleClearFilters}
+            className="px-3 py-2 text-[13px] text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors"
+          >
+            {t('attendance.clearFilters')}
+          </button>
+          <button
+            onClick={() => {
+              setExportMonth(month);
+              setExportYear(year);
+              // Carry the dashboard's department + location filter into the
+              // export modal so HR doesn't have to re-pick what they just
+              // applied. Status/employee remain modal-local.
+              setExportDept(departmentId ? String(departmentId) : "");
+              setExportLoc(locationId ? String(locationId) : "");
+              setShowExport(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white text-[13px] rounded-md hover:bg-green-700 transition-colors"
+          >
+            <Download className="h-4 w-4" /> {t('attendance.exportReport')}
+          </button>
+        </div>
+      </div>
+
+      {/* Export Modal */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-card rounded-lg shadow-2xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-md bg-green-50 dark:bg-green-950/40 flex items-center justify-center">
+                  <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">{t('attendance.export.title')}</h3>
+                  <p className="text-xs text-muted-foreground">{t('attendance.export.subtitle')}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowExport(false)} className="text-muted-foreground hover:text-muted-foreground"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="px-6 py-5 space-y-5">
+              {/* Report Type */}
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">{t('attendance.export.reportType')}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExportType("detailed")}
+                    className={`flex items-center gap-3 p-3 rounded-md border-2 transition ${exportType === "detailed" ? "border-brand-600 bg-brand-50 dark:bg-brand-950/40" : "border-border hover:border-border"}`}
+                  >
+                    <FileSpreadsheet className={`h-5 w-5 ${exportType === "detailed" ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground"}`} />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-foreground">{t('attendance.export.detailed')}</p>
+                      <p className="text-xs text-muted-foreground">{t('attendance.export.detailedDesc')}</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExportType("consolidated")}
+                    className={`flex items-center gap-3 p-3 rounded-md border-2 transition ${exportType === "consolidated" ? "border-brand-600 bg-brand-50 dark:bg-brand-950/40" : "border-border hover:border-border"}`}
+                  >
+                    <BarChart3 className={`h-5 w-5 ${exportType === "consolidated" ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground"}`} />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-foreground">{t('attendance.export.consolidated')}</p>
+                      <p className="text-xs text-muted-foreground">{t('attendance.export.consolidatedDesc')}</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Date Range Toggle */}
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" checked={!exportUseRange} onChange={() => setExportUseRange(false)} className="text-brand-600 dark:text-brand-400" />
+                    {t('attendance.export.monthYear')}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="radio" checked={exportUseRange} onChange={() => setExportUseRange(true)} className="text-brand-600 dark:text-brand-400" />
+                    {t('attendance.export.customRange')}
+                  </label>
+                </div>
+                {!exportUseRange ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <select value={exportMonth} onChange={(e) => setExportMonth(Number(e.target.value))} className="bg-card text-foreground px-3 py-2 border border-border rounded-lg text-sm">
+                      {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                    <select value={exportYear} onChange={(e) => setExportYear(Number(e.target.value))} className="bg-card text-foreground px-3 py-2 border border-border rounded-lg text-sm">
+                      {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">{t('attendance.export.from')} &mdash; {t('attendance.export.to')}</label>
+                    {/* Same composite control as the dashboard filter so the
+                        export flow feels consistent. allowEmpty so users can
+                        wipe the picked range without picking a new one. */}
+                    <DateRangePicker
+                      from={exportDateFrom}
+                      to={exportDateTo}
+                      onApply={(f, to2) => {
+                        setExportDateFrom(f);
+                        setExportDateTo(to2);
+                      }}
+                      allowEmpty
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">{t('attendance.department')}</label>
+                  <select value={exportDept} onChange={(e) => setExportDept(e.target.value)} className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]">
+                    <option value="">{t('attendance.allDepartments')}</option>
+                    {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
+                  <select value={exportLoc} onChange={(e) => setExportLoc(e.target.value)} className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]">
+                    <option value="">All locations</option>
+                    {locations.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                {exportType === "detailed" && (
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">{t('common.status')}</label>
+                    <select value={exportStatus} onChange={(e) => setExportStatus(e.target.value)} className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]">
+                      <option value="">{t('attendance.export.allStatuses')}</option>
+                      <option value="present">{t('attendance.present')}</option>
+                      <option value="checked_in">{t('attendance.statusCheckedIn')}</option>
+                      <option value="half_day">{t('attendance.statusHalfDay')}</option>
+                      <option value="absent">{t('attendance.absent')}</option>
+                      <option value="on_leave">{t('attendance.onLeave')}</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* What's included */}
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t('attendance.export.includes')}</p>
+                {exportType === "detailed" ? (
+                  <p className="text-xs text-muted-foreground">{t('attendance.export.includesDetailed')}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t('attendance.export.includesConsolidated')}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted rounded-b-lg">
+              <button onClick={() => setShowExport(false)} className="px-4 py-2 text-[13px] font-medium text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors">{t('attendance.export.cancel')}</button>
+              <button
+                onClick={handleExport}
+                disabled={exporting || (exportUseRange && !exportDateFrom)}
+                className="flex items-center gap-2 px-5 py-2 text-[13px] font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {exporting ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('attendance.export.exporting')}</> : <><Download className="h-4 w-4" /> {t('attendance.export.downloadExcel')}</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendance Records Table */}
+      <div className="bg-card rounded-lg border border-border overflow-x-auto -mx-4 lg:mx-0">
+        <div className="px-4 py-2.5 border-b border-border">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('attendance.recordsTitle', { month: months.find((m) => m.value === month)?.label, year })}
+            {departmentId ? ` ${t('attendance.filteredSuffix')}` : ""}
+          </h2>
+        </div>
+        <table className="w-full">
+          <thead className="bg-muted/50 border-b border-border">
+            <tr>
+              <th className="px-3 py-2.5 w-10"></th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('common.name')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('attendance.department')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('common.date')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5 whitespace-nowrap">{t('attendance.checkIn')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5 whitespace-nowrap">{t('attendance.checkOut')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('attendance.tableWorked')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('common.status')}</th>
+              <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">{t('attendance.late')}</th>
+              <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2.5">Details</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {recLoading ? (
+              <>
+                {[1, 2, 3, 4].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-3 py-2.5"><div className="h-4 w-4 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-28 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-20 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-20 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-16 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-16 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-12 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-16 bg-muted rounded-full" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-10 bg-muted rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-4 w-6 bg-muted rounded ml-auto" /></td>
+                  </tr>
+                ))}
+              </>
+            ) : records.length === 0 ? (
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">{t('attendance.noRecords')}</td></tr>
+            ) : (
+              records.map((r: any) => (
+                <RecordRow key={r.id} record={r} t={t} onView={() => setDetailRecord(r)} />
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {meta && meta.total_pages > 1 && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
+            <p className="text-[13px] tabular-nums text-muted-foreground">{t('attendance.pagination', { page: meta.page, totalPages: meta.total_pages, total: meta.total })}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors">{t('attendance.previous')}</button>
+              <button onClick={() => setPage((p) => p + 1)} disabled={page >= meta.total_pages} className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors">{t('attendance.next')}</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {detailRecord && (
+        <AttendanceDetailModal
+          record={detailRecord}
+          onClose={() => setDetailRecord(null)}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Multi-punch timeline (#1869) — expandable row showing every punch for a
+// given attendance record. The first punch of the day is displayed as
+// "Check in", the latest is "Check out" (even if it's the same one for a
+// single-punch day in progress), everything in between is "Punch".
+// =============================================================================
+
+interface PunchRow {
+  id: number;
+  punch_time: string;
+  source: string;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  device_identifier: string | null;
+}
+
+function sourceMeta(source: string): { label: string; Icon: typeof Fingerprint; cls: string } {
+  if (source === "biometric") return { label: "Biometric", Icon: Fingerprint, cls: "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300" };
+  if (source === "app") return { label: "Mobile app", Icon: Smartphone, cls: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300" };
+  if (source === "dashboard") return { label: "Web", Icon: Monitor, cls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" };
+  return { label: source || "Manual", Icon: Monitor, cls: "bg-muted text-muted-foreground" };
+}
+
+function fmtPunchTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
+
+function RecordRow({
+  record: r,
+  t,
+  onView,
+}: {
+  record: any;
+  t: (k: string, opts?: any) => string;
+  onView: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <>
+    <tr className="hover:bg-muted/50 transition-colors">
+      <td className="px-3 py-2.5 w-10">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="inline-flex items-center justify-center p-1.5 rounded-md text-muted-foreground hover:bg-muted"
+          aria-label={expanded ? "Collapse timeline" : "Expand timeline"}
+          title={expanded ? "Hide timeline" : "Show timeline"}
+          aria-expanded={expanded}
+        >
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      </td>
+      <td className="px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-brand-100 dark:bg-brand-950/40 flex items-center justify-center text-sm font-semibold text-brand-700 dark:text-brand-300">
+            {r.first_name?.[0]}{r.last_name?.[0]}
+          </div>
+          <div>
+            <p className="text-[13px] font-medium text-foreground">{r.first_name} {r.last_name}</p>
+            <p className="text-[11px] text-muted-foreground">{r.emp_code || r.email}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-2.5 text-[13px] text-muted-foreground">{r.department_name || "-"}</td>
+      <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">{r.date ? new Date(r.date).toLocaleDateString() : "-"}</td>
+      <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">{r.check_in ? new Date(r.check_in).toLocaleTimeString() : "-"}</td>
+      <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">{r.check_out ? new Date(r.check_out).toLocaleTimeString() : "-"}</td>
+      <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">
+        {(() => {
+          // #1949 — `worked_minutes` is only filled at check-out, so for
+          // rows still on the clock we'd otherwise show 0. Derive a live
+          // total from check_in to now, capped at ACTIVE_HOURS so a
+          // forgotten check-out doesn't render as 500h+.
+          //
+          // The cap was 30h, which was too generous: a record from the
+          // PREVIOUS day that was never closed still sat under it, so the
+          // grid showed "22h 55m (so far)" — reading as though the employee
+          // were still on the clock a day later, and inflating the worked
+          // column. 16h is the plausible ceiling for someone genuinely still
+          // working (a long shift plus overtime), and it still covers a night
+          // shift crossing midnight (e.g. in 20:00 → 08:00 next day = 12h).
+          // Past that, the row is a forgotten check-out, not live work, so it
+          // surfaces as a "Missed check-out" badge instead of a running total.
+          const ACTIVE_HOURS = 16;
+          if (r.status === "checked_in" && r.check_in) {
+            const checkInTime = new Date(r.check_in).getTime();
+            const ageMinutes = (Date.now() - checkInTime) / 60000;
+            if (ageMinutes > ACTIVE_HOURS * 60) {
+              return (
+                <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Missed check-out
+                </span>
+              );
+            }
+            const live = Math.max(0, Math.floor(ageMinutes));
+            return (
+              <span className="inline-flex items-center gap-1">
+                {`${Math.floor(live / 60)}h ${live % 60}m`}
+                <span className="text-[10px] text-muted-foreground">(so far)</span>
+              </span>
+            );
+          }
+          return r.worked_minutes != null
+            ? `${Math.floor(r.worked_minutes / 60)}h ${r.worked_minutes % 60}m`
+            : "-";
+        })()}
+      </td>
+      <td className="px-4 py-2.5">
+        {(() => {
+          // A row stamped `on_leave` can actually be a HALF-day leave where the
+          // employee worked the other half (check-in/out present, worked_minutes
+          // > 0). Showing a flat "On Leave (EL)" is wrong -- they were present
+          // for half the day. Treat it as half-day-present and label it
+          // "Half Day (EL)" so HR sees both the presence and the leave type.
+          const worked = (r.worked_minutes ?? 0) > 0 || !!r.check_in;
+          const isHalfLeavePresent =
+            r.status === "on_leave" && Number(r.leave_is_half_day) === 1 && worked;
+          const effStatus = isHalfLeavePresent ? "half_day" : r.status;
+          const leaveSuffix = r.leave_type_code || r.leave_type_name;
+          return (
+            <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${
+              effStatus === "present" ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300"
+                : effStatus === "checked_in" ? "bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+                : effStatus === "half_day" ? "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300"
+                : effStatus === "on_leave" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300"
+            }`}>
+              {(() => {
+                if (isHalfLeavePresent) {
+                  // "Half Day / EL" — the slash reads as ½ present + ½ EL,
+                  // clearer than the parenthesised form which looked like the
+                  // whole day was leave.
+                  return leaveSuffix
+                    ? `${t('attendance.statusHalfDay')} / ${leaveSuffix}`
+                    : t('attendance.statusHalfDay');
+                }
+                if (effStatus === "checked_in") return t('attendance.statusCheckedIn');
+                if (effStatus === "half_day") return t('attendance.statusHalfDay');
+                const k = `attendance.${effStatus}`;
+                const tr = t(k);
+                // Title-case the fallback ("on_leave" -> "On Leave") so the badge
+                // doesn't look like a raw enum value when no translation hit.
+                const base =
+                  tr !== k
+                    ? tr
+                    : effStatus.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+                // Append the specific leave type for on-leave rows -- HR scans
+                // the records page and needs to know it was CL vs SL vs EL etc.
+                if (effStatus === "on_leave" && leaveSuffix) {
+                  return `${base} (${leaveSuffix})`;
+                }
+                return base;
+              })()}
+            </span>
+          );
+        })()}
+      </td>
+      <td className="px-4 py-2.5 text-[13px] tabular-nums text-muted-foreground">
+        {r.late_minutes ? `${Math.floor(r.late_minutes / 60)}h ${r.late_minutes % 60}m` : "-"}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        <button
+          type="button"
+          onClick={onView}
+          className="inline-flex items-center justify-center p-1.5 rounded-md text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors"
+          aria-label="View attendance details"
+          title="View details"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+      </td>
+    </tr>
+    {expanded && <InlinePunchTimelineRow recordId={r.id} colSpan={10} />}
+    </>
+  );
+}
+
+function InlinePunchTimelineRow({ recordId, colSpan }: { recordId: number; colSpan: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["attendance-punches", recordId],
+    queryFn: () =>
+      api.get(`/attendance/records/${recordId}/punches`).then((res) => res.data.data),
+    staleTime: 60_000,
+  });
+  return (
+    <tr className="bg-muted">
+      <td colSpan={colSpan} className="px-4 py-3">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading timeline…
+          </div>
+        ) : isError ? (
+          <p className="text-sm text-red-600 dark:text-red-400">Could not load timeline for this record.</p>
+        ) : !data?.punches?.length ? (
+          <p className="text-sm text-muted-foreground">No punch history for this day.</p>
+        ) : (
+          <ol className="space-y-2">
+            {(data.punches as PunchRow[]).map((p, idx, arr) => {
+              const isFirst = idx === 0;
+              const isLast = idx === arr.length - 1 && arr.length > 1;
+              const label = isFirst ? "Check in" : isLast ? "Check out" : "Punch";
+              const labelCls = isFirst
+                ? "bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300"
+                : isLast
+                ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300"
+                : "bg-muted text-muted-foreground";
+              const meta = sourceMeta(p.source);
+              const Icon = meta.Icon;
+              return (
+                <li key={p.id} className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="font-mono text-muted-foreground w-20">{fmtPunchTime(p.punch_time)}</span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${labelCls}`}>
+                    {label}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] ${meta.cls}`}>
+                    <Icon className="w-3 h-3" /> {meta.label}
+                  </span>
+                  {p.latitude != null && p.longitude != null && (
+                    <span className="text-xs text-muted-foreground">
+                      {Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}
+                    </span>
+                  )}
+                  {p.device_identifier && (
+                    <span className="text-xs text-muted-foreground" title="Device identifier">
+                      <span className="text-muted-foreground">via</span> {p.device_identifier}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function AttendanceDetailModal({
+  record: r,
+  onClose,
+  t,
+}: {
+  record: any;
+  onClose: () => void;
+  t: (k: string, opts?: any) => string;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["attendance-punches", r.id],
+    queryFn: () =>
+      api.get(`/attendance/records/${r.id}/punches`).then((res) => res.data.data),
+    staleTime: 60_000,
+  });
+
+  // ESC closes the modal — small affordance HR users expect on every dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const statusLabel = (() => {
+    if (r.status === "checked_in") return t('attendance.statusCheckedIn');
+    if (r.status === "half_day") return t('attendance.statusHalfDay');
+    const k = `attendance.${r.status}`;
+    const tr = t(k);
+    const base =
+      tr !== k
+        ? tr
+        : (r.status || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    if (r.status === "on_leave") {
+      const suffix = (r as any).leave_type_code || (r as any).leave_type_name;
+      if (suffix) return `${base} (${suffix})`;
+    }
+    return base;
+  })();
+  const statusCls =
+    r.status === "present" ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300"
+      : r.status === "checked_in" ? "bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300"
+      : r.status === "half_day" ? "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300"
+      : r.status === "on_leave" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+      : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Attendance details</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {r.first_name} {r.last_name}
+              {r.emp_code ? ` · ${r.emp_code}` : ""}
+              {r.date ? ` · ${new Date(r.date).toLocaleDateString()}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-muted-foreground p-1 rounded"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Top summary grid — same data as the row but laid out for reading */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('attendance.department')}</p>
+              <p className="text-foreground mt-0.5">{r.department_name || "-"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('attendance.checkIn')}</p>
+              <p className="text-foreground mt-0.5">{r.check_in ? new Date(r.check_in).toLocaleTimeString() : "-"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('attendance.checkOut')}</p>
+              <p className="text-foreground mt-0.5">{r.check_out ? new Date(r.check_out).toLocaleTimeString() : "-"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('attendance.tableWorked')}</p>
+              <p className="text-foreground mt-0.5">
+                {r.worked_minutes != null ? `${Math.floor(r.worked_minutes / 60)}h ${r.worked_minutes % 60}m` : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('attendance.late')}</p>
+              <p className="text-foreground mt-0.5">
+                {r.late_minutes ? `${Math.floor(r.late_minutes / 60)}h ${r.late_minutes % 60}m` : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">{t('common.status')}</p>
+              <p className="mt-0.5">
+                <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${statusCls}`}>{statusLabel}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase mb-3">Punch timeline</p>
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading timeline…
+              </div>
+            ) : isError ? (
+              <p className="text-sm text-red-600 dark:text-red-400">Could not load timeline for this record.</p>
+            ) : !data?.punches?.length ? (
+              <p className="text-sm text-muted-foreground">No punch history for this day.</p>
+            ) : (
+              <ol className="space-y-2">
+                {(data.punches as PunchRow[]).map((p, idx, arr) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === arr.length - 1 && arr.length > 1;
+                  const label = isFirst ? "Check in" : isLast ? "Check out" : "Punch";
+                  const labelCls = isFirst
+                    ? "bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300"
+                    : isLast
+                    ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300"
+                    : "bg-muted text-muted-foreground";
+                  const meta = sourceMeta(p.source);
+                  const Icon = meta.Icon;
+                  return (
+                    <li key={p.id} className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="font-mono text-muted-foreground w-20">{fmtPunchTime(p.punch_time)}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${labelCls}`}>
+                        {label}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] ${meta.cls}`}>
+                        <Icon className="w-3 h-3" /> {meta.label}
+                      </span>
+                      {p.latitude != null && p.longitude != null && (
+                        <span className="text-xs text-muted-foreground">
+                          {Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}
+                        </span>
+                      )}
+                      {p.device_identifier && (
+                        <span className="text-xs text-muted-foreground" title="Device identifier">
+                          <span className="text-muted-foreground">via</span> {p.device_identifier}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-3 border-t border-border flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-[13px] border border-border rounded-md hover:bg-muted transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

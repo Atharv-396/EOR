@@ -1,0 +1,598 @@
+// =============================================================================
+// EMP CLOUD — Employee Profile Service
+// Profile queries, directory, birthdays, anniversaries, headcount.
+// =============================================================================
+
+import { getDB } from "../../db/connection.js";
+import { getPayrollDB, isPayrollDBAccessible } from "../../db/payroll-connection.js";
+import { ConflictError, NotFoundError } from "../../utils/errors.js";
+import { logger } from "../../utils/logger.js";
+import { recalculateAttendanceForAssignmentWindow } from "../attendance/attendance.service.js";
+import type { UpsertEmployeeProfileInput } from "@empcloud/shared";
+
+// ---------------------------------------------------------------------------
+// Get Profile (user + extended profile)
+// ---------------------------------------------------------------------------
+
+export async function getProfile(orgId: number, userId: number) {
+  const db = getDB();
+  const row = await db("users")
+    .leftJoin("employee_profiles", function () {
+      this.on("users.id", "employee_profiles.user_id").andOn(
+        "employee_profiles.organization_id",
+        db.raw("?", [orgId])
+      );
+    })
+    .leftJoin("users as manager", "users.reporting_manager_id", "manager.id")
+    .leftJoin("organization_departments", "users.department_id", "organization_departments.id")
+    .leftJoin("biometric_legacy_credentials as blc", "blc.user_id", "users.id")
+    .where({ "users.id": userId, "users.organization_id": orgId })
+    .select(
+      "users.id",
+      "users.organization_id",
+      "users.first_name",
+      "users.last_name",
+      "users.email",
+      "users.emp_code",
+      "users.contact_number",
+      "users.date_of_birth",
+      "users.gender",
+      "users.date_of_joining",
+      "users.date_of_exit",
+      "users.designation",
+      "users.department_id",
+      "users.location_id",
+      "users.reporting_manager_id",
+      "users.employment_type",
+      "users.photo_path",
+      "users.role",
+      "users.status",
+      db.raw("CONCAT(manager.first_name, ' ', manager.last_name) as reporting_manager_name"),
+      "organization_departments.name as department_name",
+      "employee_profiles.personal_email",
+      "employee_profiles.emergency_contact_name",
+      "employee_profiles.emergency_contact_phone",
+      "employee_profiles.emergency_contact_relation",
+      "employee_profiles.blood_group",
+      "employee_profiles.marital_status",
+      "employee_profiles.nationality",
+      "employee_profiles.aadhar_number",
+      "employee_profiles.pan_number",
+      "employee_profiles.uan_number",
+      "employee_profiles.passport_number",
+      "employee_profiles.passport_expiry",
+      "employee_profiles.visa_status",
+      "employee_profiles.visa_expiry",
+      "employee_profiles.probation_start_date",
+      "employee_profiles.probation_end_date",
+      "employee_profiles.confirmation_date",
+      "employee_profiles.notice_period_days",
+      // 1 when the user has a biometric face on file; the profile UI uses
+      // this to show the kiosk-enrolled photo and lock the upload control.
+      db.raw("CASE WHEN blc.face_url IS NOT NULL THEN 1 ELSE 0 END as has_biometric_face")
+    )
+    .first();
+
+  if (!row) throw new NotFoundError("Employee");
+
+  // #1423 — include the current active shift assignment (if any) so the
+  // client can show + edit it. Picked from the most recent assignment where
+  // effective_to is null or in the future.
+  const today = new Date();
+  const currentShift = await db("shift_assignments")
+    .leftJoin("shifts", "shift_assignments.shift_id", "shifts.id")
+    .where({ "shift_assignments.organization_id": orgId, "shift_assignments.user_id": userId })
+    .andWhere((qb) => {
+      qb.whereNull("shift_assignments.effective_to").orWhere(
+        "shift_assignments.effective_to",
+        ">=",
+        today,
+      );
+    })
+    .orderBy("shift_assignments.effective_from", "desc")
+    .select(
+      "shift_assignments.shift_id",
+      "shifts.name as shift_name",
+    )
+    .first();
+
+  return {
+    ...row,
+    has_biometric_face: !!Number((row as any).has_biometric_face),
+    shift_id: currentShift?.shift_id ?? null,
+    shift_name: currentShift?.shift_name ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Upsert Profile (insert or update on duplicate user_id)
+// ---------------------------------------------------------------------------
+
+export async function upsertProfile(
+  orgId: number,
+  userId: number,
+  data: UpsertEmployeeProfileInput & { reporting_manager_id?: number | string | null },
+  // #1423 — actor for audit trails on derived writes (shift assignments).
+  // Optional so older callers keep working; defaults to the target user.
+  actorUserId?: number,
+  // #1423 / #1424 — whether the caller has HR privileges. When the caller is
+  // editing their OWN profile without HR, we silently drop department/shift/
+  // designation changes so employees can't reassign themselves.
+  isHR: boolean = true,
+) {
+  const db = getDB();
+
+  // Verify user belongs to org
+  const user = await db("users")
+    .where({ id: userId, organization_id: orgId })
+    .first();
+  if (!user) throw new NotFoundError("Employee");
+
+  // #1403 — gender, date_of_birth, contact_number, reporting_manager_id live
+  // on the users table, not employee_profiles. Split them out of the profile
+  // payload and apply them with a single users-table update.
+  //
+  // #1423 / #1424 — department_id and designation are also users-table columns
+  // edited from the profile form; they follow the same split pattern. shift_id
+  // does NOT live on users (it's a shift_assignments row) so it's handled
+  // separately below.
+  const {
+    reporting_manager_id,
+    gender,
+    date_of_birth,
+    contact_number,
+    department_id,
+    designation,
+    emp_code,
+    shift_id,
+    ...profileData
+  } = data as any;
+
+  const userUpdate: Record<string, unknown> = {};
+  if (reporting_manager_id !== undefined && isHR) {
+    userUpdate.reporting_manager_id = reporting_manager_id ? Number(reporting_manager_id) : null;
+  }
+  if (gender !== undefined) userUpdate.gender = gender || null;
+  if (date_of_birth !== undefined) userUpdate.date_of_birth = date_of_birth || null;
+  if (contact_number !== undefined) userUpdate.contact_number = contact_number || null;
+  // #1423 — department is HR-only. Self-service employees cannot change their
+  // own department.
+  if (department_id !== undefined && isHR) {
+    userUpdate.department_id = department_id ? Number(department_id) : null;
+  }
+  // #1424 — designation: HR can change freely. Employees can see it read-only
+  // but cannot edit (matches the #1423/#1424 ticket's "be conservative"
+  // guidance — employees shouldn't arbitrarily rename their role).
+  if (designation !== undefined && isHR) userUpdate.designation = designation || null;
+  // emp_code: HR-only edit (emp-payroll#246). Trim + fold whitespace-only
+  // strings to NULL so migration 054's UNIQUE(organization_id, emp_code)
+  // index doesn't fire "Duplicate entry '1-'" the moment two users clear
+  // their code (emp_code || null only catches '', not '   ').
+  //
+  // Pre-check the index BEFORE the UPDATE: if the requested code is
+  // already used by a different user in the same org, throw a clean
+  // ConflictError so HR sees a real message instead of a generic 500
+  // from a leaked SQL duplicate-key error. The route layer also has a
+  // ER_DUP_ENTRY catch as a race-window safety net.
+  if (emp_code !== undefined && isHR) {
+    const trimmed = typeof emp_code === "string" ? emp_code.trim() : emp_code;
+    const next = trimmed ? trimmed : null;
+    if (next) {
+      const clash = await db("users")
+        .where({ organization_id: orgId, emp_code: next })
+        .whereNot("id", userId)
+        .first();
+      if (clash) {
+        const owner = `${clash.first_name ?? ""} ${clash.last_name ?? ""}`.trim() || clash.email || `user #${clash.id}`;
+        throw new ConflictError(
+          `Employee code "${next}" is already used by ${owner}. Pick a different code.`,
+        );
+      }
+    }
+    userUpdate.emp_code = next;
+  }
+
+  if (Object.keys(userUpdate).length > 0) {
+    userUpdate.updated_at = new Date();
+    await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .update(userUpdate);
+  }
+
+  // #1423 — shift assignment is HR-only. When a shift_id is supplied, end any
+  // current assignment (effective_to = today) and create a new one starting
+  // today. If shift_id is explicitly null, we end the current assignment but
+  // don't create a new one.
+  if (shift_id !== undefined && isHR) {
+    const today = new Date();
+    await db("shift_assignments")
+      .where({ organization_id: orgId, user_id: userId })
+      .whereNull("effective_to")
+      .update({ effective_to: today, updated_at: today });
+
+    if (shift_id) {
+      await db("shift_assignments").insert({
+        organization_id: orgId,
+        user_id: userId,
+        shift_id: Number(shift_id),
+        effective_from: today,
+        effective_to: null,
+        created_by: actorUserId ?? userId,
+        created_at: today,
+        updated_at: today,
+      });
+    }
+
+    await recalculateAttendanceForAssignmentWindow(
+      orgId,
+      [userId],
+      today.toISOString().slice(0, 10),
+      null,
+    );
+  }
+
+  const existing = await db("employee_profiles")
+    .where({ user_id: userId, organization_id: orgId })
+    .first();
+
+  if (existing) {
+    await db("employee_profiles")
+      .where({ id: existing.id })
+      .update({ ...profileData, updated_at: new Date() });
+  } else {
+    await db("employee_profiles").insert({
+      organization_id: orgId,
+      user_id: userId,
+      ...profileData,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  }
+
+  // Sync PAN / UAN to the payroll module so a statutory ID entered on EmpCloud's
+  // profile screen surfaces on the payroll side too. The two products keep these
+  // in SEPARATE stores — EmpCloud `employee_profiles.pan_number/uan_number` vs
+  // payroll `employee_payroll_profiles.tax_info` (a JSON blob keyed `pan`/`uan`).
+  // Without this mirror, a PAN added here never reaches payroll's TDS/Form-16
+  // logic. The payroll→EmpCloud direction is handled in emp-payroll's
+  // employee.service.ts update(); together they keep both sides consistent
+  // regardless of which screen HR (or the employee) used.
+  //
+  // Best-effort and fully isolated: we never CREATE a payroll profile from here
+  // (seating/identity is payroll's concern) — we only patch tax_info on an
+  // existing row. Any payroll-DB problem is swallowed so it can't break the
+  // EmpCloud profile save the user actually asked for.
+  await syncStatutoryIdsToPayroll(orgId, userId, profileData);
+
+  return getProfile(orgId, userId);
+}
+
+// ---------------------------------------------------------------------------
+// Cross-module statutory ID sync (EmpCloud -> payroll)
+// ---------------------------------------------------------------------------
+
+async function syncStatutoryIdsToPayroll(
+  orgId: number,
+  userId: number,
+  profileData: Record<string, unknown>,
+): Promise<void> {
+  const hasPan = typeof profileData.pan_number === "string";
+  const hasUan = typeof profileData.uan_number === "string";
+  if (!hasPan && !hasUan) return;
+
+  try {
+    if (!(await isPayrollDBAccessible())) return;
+    const pdb = getPayrollDB();
+
+    // Only mirror onto an existing payroll profile — don't manufacture one.
+    const profile = await pdb("employee_payroll_profiles")
+      .where({ empcloud_user_id: userId, empcloud_org_id: orgId })
+      .first();
+    if (!profile) return;
+
+    // tax_info may be a JSON string, an already-parsed object, or null.
+    let taxInfo: Record<string, unknown> = {};
+    const raw = profile.tax_info;
+    if (raw != null) {
+      if (typeof raw === "string") {
+        try {
+          taxInfo = JSON.parse(raw || "{}") || {};
+        } catch {
+          taxInfo = {};
+        }
+      } else if (typeof raw === "object") {
+        taxInfo = { ...(raw as Record<string, unknown>) };
+      }
+    }
+
+    if (hasPan) {
+      const pan = String(profileData.pan_number ?? "").trim().toUpperCase();
+      taxInfo.pan = pan || "";
+    }
+    if (hasUan) {
+      const uan = String(profileData.uan_number ?? "").trim();
+      taxInfo.uan = uan || "";
+    }
+
+    await pdb("employee_payroll_profiles")
+      .where({ id: profile.id })
+      .update({ tax_info: JSON.stringify(taxInfo) });
+  } catch (err) {
+    // Never let a payroll-side hiccup fail the EmpCloud profile save.
+    logger.warn("Failed to sync statutory IDs to payroll", {
+      orgId,
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Directory (paginated, searchable, filterable)
+// ---------------------------------------------------------------------------
+
+export async function getDirectory(
+  orgId: number,
+  params: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    department_id?: number;
+    location_id?: number;
+    role?: string;
+    status?: number | "all";
+  }
+) {
+  const db = getDB();
+  const page = params.page || 1;
+  const perPage = params.per_page || 20;
+
+  // Left-join biometric_legacy_credentials so the directory can show the
+  // kiosk-enrolled face image when one exists (and disable manual photo
+  // upload for those rows). face_url is the NAS / local sentinel that
+  // /api/v3/biometric/face/:id.jpg serves; we only need to know whether
+  // it's set, not the actual value.
+  let query = db("users")
+    .leftJoin("organization_departments", "users.department_id", "organization_departments.id")
+    .leftJoin("biometric_legacy_credentials as blc", "blc.user_id", "users.id")
+    .where({ "users.organization_id": orgId });
+
+  // Default to active employees only (status=1) to match dashboard count
+  if (params.status === "all") {
+    // Explicitly include active and inactive employees. The default remains
+    // active-only for backwards compatibility with existing directory users.
+  } else if (params.status !== undefined) {
+    query = query.where("users.status", params.status);
+  } else {
+    query = query.where("users.status", 1);
+  }
+
+  if (params.search) {
+    const s = `%${params.search}%`;
+    query = query.where(function () {
+      this.where("users.first_name", "like", s)
+        .orWhere("users.last_name", "like", s)
+        .orWhere("users.email", "like", s)
+        .orWhere("users.designation", "like", s)
+        .orWhere("organization_departments.name", "like", s)
+        .orWhereRaw("CONCAT(users.first_name, ' ', users.last_name) LIKE ?", [s]);
+    });
+  }
+
+  if (params.department_id) {
+    query = query.where("users.department_id", params.department_id);
+  }
+
+  if (params.location_id) {
+    query = query.where("users.location_id", params.location_id);
+  }
+
+  if (params.role) {
+    query = query.where("users.role", params.role);
+  }
+
+  const [{ count }] = await query.clone().count("users.id as count");
+  const rows = await query
+    .select(
+      "users.id",
+      "users.first_name",
+      "users.last_name",
+      "users.email",
+      "users.emp_code",
+      "users.designation",
+      "users.department_id",
+      "users.location_id",
+      "users.photo_path",
+      "users.status",
+      "users.role",
+      "users.date_of_joining",
+      "organization_departments.name as department_name",
+      // 1 when the user has a non-null biometric face_url, 0 otherwise.
+      // Cast to boolean below — MySQL returns 0/1, the frontend wants
+      // true/false so the avatar can branch cleanly.
+      db.raw("CASE WHEN blc.face_url IS NOT NULL THEN 1 ELSE 0 END as has_biometric_face")
+    )
+    .orderBy("users.first_name", "asc")
+    .limit(perPage)
+    .offset((page - 1) * perPage);
+
+  const users = rows.map((u: any) => ({
+    ...u,
+    has_biometric_face: !!Number(u.has_biometric_face),
+  }));
+
+  return { users, total: Number(count) };
+}
+
+export async function getDirectoryStats(orgId: number) {
+  const db = getDB();
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const base = db("users")
+    .where({ organization_id: orgId })
+    .whereNot("role", "super_admin");
+
+  const [totalRow, activeRow, newJoinersRow] = await Promise.all([
+    base.clone().count("id as count").first(),
+    base.clone().where("status", 1).count("id as count").first(),
+    base
+      .clone()
+      .where("status", 1)
+      .where("date_of_joining", ">=", monthStart)
+      .count("id as count")
+      .first(),
+  ]);
+
+  return {
+    total_employees: Number(totalRow?.count ?? 0),
+    active_employees: Number(activeRow?.count ?? 0),
+    new_joiners_this_month: Number(newJoinersRow?.count ?? 0),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Birthdays — users with date_of_birth in next 30 days
+// ---------------------------------------------------------------------------
+
+export async function getBirthdays(orgId: number) {
+  const db = getDB();
+  const today = new Date();
+  const dayOfYear = getDayOfYear(today);
+  const targetDay = dayOfYear + 30;
+
+  // Handle year wrap-around
+  if (targetDay <= 366) {
+    return db("users")
+      .where({ organization_id: orgId, status: 1 })
+      .whereNotNull("date_of_birth")
+      .whereRaw(
+        "DAYOFYEAR(date_of_birth) >= ? AND DAYOFYEAR(date_of_birth) <= ?",
+        [dayOfYear, targetDay]
+      )
+      .select(
+        "id",
+        "first_name",
+        "last_name",
+        "date_of_birth",
+        "photo_path",
+        "department_id"
+      )
+      .orderByRaw("DAYOFYEAR(date_of_birth) ASC");
+  }
+
+  return db("users")
+    .where({ organization_id: orgId, status: 1 })
+    .whereNotNull("date_of_birth")
+    .where(function () {
+      this.whereRaw("DAYOFYEAR(date_of_birth) >= ?", [dayOfYear]).orWhereRaw(
+        "DAYOFYEAR(date_of_birth) <= ?",
+        [targetDay - 366]
+      );
+    })
+    .select(
+      "id",
+      "first_name",
+      "last_name",
+      "date_of_birth",
+      "photo_path",
+      "department_id"
+    )
+    .orderByRaw("DAYOFYEAR(date_of_birth) ASC");
+}
+
+// ---------------------------------------------------------------------------
+// Anniversaries — users with date_of_joining anniversary in next 30 days
+// ---------------------------------------------------------------------------
+
+export async function getAnniversaries(orgId: number) {
+  const db = getDB();
+  const today = new Date();
+  const dayOfYear = getDayOfYear(today);
+  const targetDay = dayOfYear + 30;
+
+  if (targetDay <= 366) {
+    return db("users")
+      .where({ organization_id: orgId, status: 1 })
+      .whereNotNull("date_of_joining")
+      .whereRaw(
+        "DAYOFYEAR(date_of_joining) >= ? AND DAYOFYEAR(date_of_joining) <= ?",
+        [dayOfYear, targetDay]
+      )
+      .select(
+        "id",
+        "first_name",
+        "last_name",
+        "date_of_joining",
+        "photo_path",
+        "department_id"
+      )
+      .orderByRaw("DAYOFYEAR(date_of_joining) ASC");
+  }
+
+  return db("users")
+    .where({ organization_id: orgId, status: 1 })
+    .whereNotNull("date_of_joining")
+    .where(function () {
+      this.whereRaw("DAYOFYEAR(date_of_joining) >= ?", [
+        dayOfYear,
+      ]).orWhereRaw("DAYOFYEAR(date_of_joining) <= ?", [targetDay - 366]);
+    })
+    .select(
+      "id",
+      "first_name",
+      "last_name",
+      "date_of_joining",
+      "photo_path",
+      "department_id"
+    )
+    .orderByRaw("DAYOFYEAR(date_of_joining) ASC");
+}
+
+// ---------------------------------------------------------------------------
+// Headcount — GROUP BY department_id
+// ---------------------------------------------------------------------------
+
+// #1822 — Bug 9: the dashboard "Headcount by Department" chart was rendering
+// the literal string "null" as a legend entry for employees with
+// department_id IS NULL. The API previously returned only the raw
+// department_id + count, leaving label-resolution to the client (which
+// happily stringified `null`). We now resolve the department name
+// server-side and bucket employees with no department under
+// "Unassigned" so the chart always shows a human-readable label.
+export async function getHeadcount(orgId: number) {
+  const db = getDB();
+  const rows = await db("users")
+    .leftJoin("organization_departments", function () {
+      this.on("users.department_id", "=", "organization_departments.id").andOn(
+        "organization_departments.organization_id",
+        "=",
+        db.raw("?", [orgId]),
+      );
+    })
+    .where({ "users.organization_id": orgId, "users.status": 1 })
+    .select(
+      "users.department_id",
+      "organization_departments.name as department_name",
+    )
+    .count("* as count")
+    .groupBy("users.department_id", "organization_departments.name");
+
+  return rows.map((r: any) => ({
+    department_id: r.department_id,
+    department_name: r.department_name ?? "Unassigned",
+    count: Number(r.count),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getDayOfYear(date: Date): number {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.floor(diff / oneDay);
+}

@@ -1,0 +1,559 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/api/client";
+import { useAuthStore } from "@/lib/auth-store";
+import { usePermissions } from "@/lib/use-permissions";
+import { Megaphone, Plus, Check, AlertTriangle, AlertCircle, Info, ChevronDown, ChevronUp, Trash2, Pencil } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { showToast } from "@/components/ui/Toast";
+import RichTextEditor, { isRichTextEmpty } from "@/components/ui/RichTextEditor";
+
+// Roles for the targeting dropdown. Labels come from i18n
+// (announcements.page.roles.*).
+const AVAILABLE_ROLES = ["employee", "manager", "hr_admin", "org_admin"];
+
+// Priority → colour + icon. Label text comes from i18n
+// (announcements.page.priority.*).
+const PRIORITY_CONFIG: Record<string, { color: string; icon: typeof Info }> = {
+  urgent: { color: "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/50", icon: AlertCircle },
+  high: { color: "bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-900/50", icon: AlertTriangle },
+  normal: { color: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/50", icon: Info },
+  low: { color: "bg-muted text-muted-foreground border-border", icon: Info },
+};
+
+const HR_ROLES = ["hr_admin", "org_admin", "super_admin"];
+
+function useAnnouncements(page: number) {
+  return useQuery({
+    queryKey: ["announcements", page],
+    queryFn: () => api.get("/announcements", { params: { page } }).then((r) => r.data),
+  });
+}
+
+function useUnreadCount() {
+  return useQuery({
+    queryKey: ["announcements-unread"],
+    queryFn: () => api.get("/announcements/unread-count").then((r) => r.data.data.count),
+  });
+}
+
+function useCreateAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: object) => api.post("/announcements", data).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      qc.invalidateQueries({ queryKey: ["announcements-unread"] });
+    },
+  });
+}
+
+function useUpdateAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: object }) =>
+      api.put(`/announcements/${id}`, data).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      qc.invalidateQueries({ queryKey: ["announcements-unread"] });
+    },
+  });
+}
+
+function useMarkAsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.post(`/announcements/${id}/read`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      qc.invalidateQueries({ queryKey: ["announcements-unread"] });
+    },
+  });
+}
+
+function useDeleteAnnouncement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/announcements/${id}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      qc.invalidateQueries({ queryKey: ["announcements-unread"] });
+    },
+  });
+}
+
+export default function AnnouncementsPage() {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  // When set, the form is editing this announcement id; null = create mode.
+  const [editId, setEditId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  // Confirm-delete dialog state (replaces window.confirm). Holds the
+  // announcement awaiting confirmation so the dialog can show its title.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const { data, isLoading } = useAnnouncements(page);
+  const { data: unreadCount } = useUnreadCount();
+  const createAnnouncement = useCreateAnnouncement();
+  const updateAnnouncement = useUpdateAnnouncement();
+  const markAsRead = useMarkAsRead();
+  const user = useAuthStore((s) => s.user);
+
+  const isHR = user && HR_ROLES.includes(user.role);
+  // Mirror the recent custom-role fixes: server gates POST on
+  // announcements:create|manage and DELETE on announcements:manage, so the
+  // UI must accept the same custom-role permission grants.
+  const { has } = usePermissions();
+  const canManage = isHR || has("announcements:manage");
+  const deleteAnnouncement = useDeleteAnnouncement();
+  const announcements = data?.data || [];
+  const meta = data?.meta;
+
+  // Form state
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [priority, setPriority] = useState("normal");
+  const [targetType, setTargetType] = useState("all");
+
+  // Fetch departments for target dropdown (must be after targetType state declaration)
+  const { data: departments, isLoading: deptLoading } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => api.get("/organizations/me/departments").then((r) => r.data.data),
+    enabled: !!isHR && targetType === "department",
+  });
+  const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
+  const [expiresAt, setExpiresAt] = useState("");
+
+  const resetForm = () => {
+    setTitle("");
+    setContent("");
+    setPriority("normal");
+    setTargetType("all");
+    setSelectedTargetIds([]);
+    setExpiresAt("");
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditId(null);
+    resetForm();
+  };
+
+  // Prefill the form from an existing announcement and switch to edit mode.
+  // target_ids is stored as a JSON string on the server; parse it back to the
+  // string[] the checkbox UI expects. expires_at is sliced to the 16-char
+  // "YYYY-MM-DDTHH:mm" shape a datetime-local input needs.
+  const startEdit = (a: any) => {
+    setEditId(a.id);
+    setTitle(a.title ?? "");
+    setContent(a.content ?? "");
+    setPriority(a.priority ?? "normal");
+    setTargetType(a.target_type ?? "all");
+    let ids: string[] = [];
+    if (a.target_ids) {
+      try {
+        const parsed = JSON.parse(a.target_ids);
+        if (Array.isArray(parsed)) ids = parsed.map(String);
+      } catch {
+        ids = [];
+      }
+    }
+    setSelectedTargetIds(ids);
+    setExpiresAt(a.expires_at ? String(a.expires_at).slice(0, 16) : "");
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      title,
+      content,
+      priority,
+      target_type: targetType,
+      target_ids: selectedTargetIds.length > 0 ? JSON.stringify(selectedTargetIds) : null,
+      expires_at: expiresAt || null,
+    };
+    try {
+      if (editId != null) {
+        await updateAnnouncement.mutateAsync({ id: editId, data: payload });
+        showToast("success", t("announcements.page.updateSuccess", { title: title.trim() }));
+      } else {
+        await createAnnouncement.mutateAsync(payload);
+        showToast("success", t("announcements.page.createSuccess", { title: title.trim() }));
+      }
+      closeForm();
+    } catch (err: any) {
+      showToast(
+        "error",
+        err?.response?.data?.error?.message ??
+          (editId != null ? t("announcements.page.updateError") : t("announcements.page.createError")),
+      );
+    }
+  };
+
+  const isSaving = createAnnouncement.isPending || updateAnnouncement.isPending;
+
+  const handleTargetToggle = (id: string) => {
+    setSelectedTargetIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    );
+  };
+
+  const handleMarkRead = async (id: number) => {
+    await markAsRead.mutateAsync(id);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("announcements.page.title")}</h1>
+            {typeof unreadCount === "number" && unreadCount > 0 && (
+              <span className="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-2 text-[11px] tabular-nums font-bold text-white bg-red-500 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-1">{t("announcements.page.subtitle")}</p>
+        </div>
+        {isHR && (
+          <button
+            onClick={() => (showForm ? closeForm() : (setEditId(null), resetForm(), setShowForm(true)))}
+            className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700"
+          >
+            <Plus className="h-4 w-4" /> {t("announcements.page.newAnnouncement")}
+          </button>
+        )}
+      </div>
+
+      {/* Create Announcement Form */}
+      {showForm && isHR && (
+        <form onSubmit={handleSubmit} className="bg-card rounded-lg border border-border p-4 mb-6 space-y-4">
+          <h2 className="text-base font-semibold text-foreground">
+            {editId != null ? t("announcements.page.editTitle") : t("announcements.page.createTitle")}
+          </h2>
+
+          <div>
+            <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t("announcements.page.fieldTitle")} <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+              placeholder={t("announcements.page.titlePlaceholder")}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t("announcements.page.fieldContent")} <span className="text-red-500">*</span></label>
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder={t("announcements.page.contentPlaceholder")}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t("announcements.page.fieldPriority")}</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+              >
+                <option value="low">{t("announcements.page.priority.low")}</option>
+                <option value="normal">{t("announcements.page.priority.normal")}</option>
+                <option value="high">{t("announcements.page.priority.high")}</option>
+                <option value="urgent">{t("announcements.page.priority.urgent")}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t("announcements.page.fieldTarget")}</label>
+              <select
+                value={targetType}
+                onChange={(e) => { setTargetType(e.target.value); setSelectedTargetIds([]); }}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+              >
+                <option value="all">{t("announcements.page.targetAll")}</option>
+                <option value="department">{t("announcements.page.targetDepartment")}</option>
+                <option value="role">{t("announcements.page.targetRole")}</option>
+              </select>
+            </div>
+
+            {targetType === "department" && (
+              <div>
+                <label className="block text-[13px] font-medium text-muted-foreground mb-1">
+                  {t("announcements.page.selectDepartments")}
+                </label>
+                <div className="w-full border border-border rounded-md p-2 max-h-40 overflow-y-auto bg-card">
+                  {deptLoading ? (
+                    <p className="text-xs text-muted-foreground p-1">{t("announcements.page.loadingDepartments")}</p>
+                  ) : (departments || []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-1">{t("announcements.page.noDepartments")}</p>
+                  ) : (
+                    (departments || []).map((dept: any) => (
+                      <label key={dept.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedTargetIds.includes(String(dept.id))}
+                          onChange={() => handleTargetToggle(String(dept.id))}
+                          className="rounded border-border text-brand-600 dark:text-brand-400"
+                        />
+                        <span className="text-sm text-muted-foreground">{dept.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {selectedTargetIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{t("announcements.page.departmentsSelected", { count: selectedTargetIds.length })}</p>
+                )}
+              </div>
+            )}
+            {targetType === "role" && (
+              <div>
+                <label className="block text-[13px] font-medium text-muted-foreground mb-1">
+                  {t("announcements.page.selectRoles")}
+                </label>
+                <div className="w-full border border-border rounded-md p-2 max-h-40 overflow-y-auto bg-card">
+                  {AVAILABLE_ROLES.map((role) => (
+                    <label key={role} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedTargetIds.includes(role)}
+                        onChange={() => handleTargetToggle(role)}
+                        className="rounded border-border text-brand-600 dark:text-brand-400"
+                      />
+                      <span className="text-sm text-muted-foreground">{t(`announcements.page.roles.${role}`)}</span>
+                    </label>
+                  ))}
+                </div>
+                {selectedTargetIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{t("announcements.page.rolesSelected", { count: selectedTargetIds.length })}</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[13px] font-medium text-muted-foreground mb-1">{t("announcements.page.fieldExpires")}</label>
+              <input
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeForm}
+              className="px-4 py-2 text-[13px] border border-border rounded-md text-muted-foreground hover:bg-muted/50 transition-colors"
+            >
+              {t("announcements.page.cancel")}
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving || !title.trim() || isRichTextEmpty(content)}
+              className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-md text-[13px] font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Megaphone className="h-4 w-4" />{" "}
+              {editId != null ? t("announcements.page.saveChanges") : t("announcements.page.publish")}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Announcement Cards */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
+            {t("announcements.page.loading")}
+          </div>
+        ) : announcements.length === 0 ? (
+          <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
+            {t("announcements.page.empty")}
+          </div>
+        ) : (
+          announcements.map((a: any) => {
+            const config = PRIORITY_CONFIG[a.priority] || PRIORITY_CONFIG.normal;
+            const PriorityIcon = config.icon;
+            const isRead = !!a.read_at;
+            const isExpanded = expandedId === a.id;
+
+            return (
+              <div
+                key={a.id}
+                className={`bg-card rounded-lg border overflow-hidden hover:border-brand-400 transition-colors duration-150 ${
+                  isRead ? "border-border" : "border-brand-300 shadow-sm"
+                }`}
+              >
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        {/* Priority Badge */}
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-md border ${config.color}`}>
+                          <PriorityIcon className="h-3 w-3" />
+                          {t(`announcements.page.priority.${a.priority}`, { defaultValue: a.priority })}
+                        </span>
+
+                        {/* Unread indicator */}
+                        {!isRead && (
+                          <span className="inline-flex items-center text-xs font-medium text-brand-600 dark:text-brand-400">
+                            {t("announcements.page.new")}
+                          </span>
+                        )}
+
+                        {/* Target badge */}
+                        {a.target_type !== "all" && (
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {a.target_type}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className={`text-base font-semibold ${isRead ? "text-muted-foreground" : "text-foreground"}`}>
+                        {a.title}
+                      </h3>
+
+                      {/* Content is sanitized server-side via sanitizeHtml()
+                          before insert/update, so it's safe to render as
+                          HTML here. Was previously rendered as plain text,
+                          which caused authored markup to leak as literal
+                          <p>...</p> tags to readers (#1634). */}
+                      <div
+                        className={`rich-text mt-1 ${
+                          isExpanded ? "" : "line-clamp-2"
+                        } ${isRead ? "text-muted-foreground" : "text-muted-foreground"}`}
+                        dangerouslySetInnerHTML={{ __html: a.content || "" }}
+                      />
+
+                      {(a.content.length > 120 || (a.content.match(/\n/g) || []).length > 2) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setExpandedId(isExpanded ? null : a.id); }}
+                          className="mt-1 text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 flex items-center gap-1"
+                        >
+                          {isExpanded ? (
+                            <>{t("announcements.page.showLess")} <ChevronUp className="h-3 w-3" /></>
+                          ) : (
+                            <>{t("announcements.page.readMore")} <ChevronDown className="h-3 w-3" /></>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      {/* Mark as read button */}
+                      {!isRead && (
+                        <button
+                          onClick={() => handleMarkRead(a.id)}
+                          disabled={markAsRead.isPending}
+                          className="flex items-center gap-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 border border-brand-200 dark:border-brand-900/50 px-3 py-1.5 rounded-md hover:bg-brand-50 dark:hover:bg-brand-950/40 disabled:opacity-50"
+                        >
+                          <Check className="h-3.5 w-3.5" /> {t("announcements.page.markRead")}
+                        </button>
+                      )}
+                      {canManage && (
+                        <button
+                          onClick={() => startEdit(a)}
+                          title={t("announcements.page.editTitle")}
+                          aria-label={t("announcements.page.editAria", { title: a.title })}
+                          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-brand-700 border border-border px-3 py-1.5 rounded-md hover:bg-brand-50 dark:hover:bg-brand-950/40"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> {t("announcements.page.edit")}
+                        </button>
+                      )}
+                      {canManage && (
+                        <button
+                          onClick={() => setDeleteTarget({ id: a.id, title: a.title })}
+                          disabled={deleteAnnouncement.isPending}
+                          title={t("announcements.page.deleteTitle")}
+                          aria-label={t("announcements.page.deleteAria", { title: a.title })}
+                          className="flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 border border-red-200 dark:border-red-900/50 px-3 py-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {t("announcements.page.delete")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>
+                      {a.published_at
+                        ? new Date(a.published_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : t("announcements.page.draft")}
+                    </span>
+                    {a.expires_at && (
+                      <span>
+                        {t("announcements.page.expires", { date: new Date(a.expires_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) })}
+                      </span>
+                    )}
+                    {isRead && a.read_at && (
+                      <span className="flex items-center gap-1 text-green-500">
+                        <Check className="h-3 w-3" /> {t("announcements.page.read")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Pagination */}
+      {meta && meta.total_pages > 1 && (
+        <div className="flex items-center justify-between mt-6">
+          <p className="text-sm text-muted-foreground">
+            {t("announcements.page.pageOf", { page: meta.page, total_pages: meta.total_pages, total: meta.total })}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors"
+            >
+              {t("announcements.page.previous")}
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= meta.total_pages}
+              className="bg-card text-foreground px-3 py-1.5 text-[13px] border border-border rounded-md disabled:opacity-50 hover:bg-muted transition-colors"
+            >
+              {t("announcements.page.next")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? t("announcements.page.deleteConfirmTitle", { title: deleteTarget.title }) : t("announcements.page.deleteConfirmTitleGeneric")}
+        description={t("announcements.page.deleteConfirmDesc")}
+        confirmText={t("announcements.page.delete")}
+        variant="danger"
+        loading={deleteAnnouncement.isPending}
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteAnnouncement.mutate(deleteTarget.id, {
+              onSuccess: () => setDeleteTarget(null),
+            });
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  );
+}

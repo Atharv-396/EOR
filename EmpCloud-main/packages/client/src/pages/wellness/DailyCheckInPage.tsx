@@ -1,0 +1,263 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/api/client";
+import { useNavigate } from "react-router-dom";
+import {
+  Heart,
+  Zap,
+  Moon,
+  Dumbbell,
+  CheckCircle,
+  ArrowLeft,
+} from "lucide-react";
+
+const todayISO = () => new Date().toISOString().split("T")[0];
+
+// Mood options — label text comes from i18n (wellness.checkIn.mood.*).
+const MOODS = [
+  { value: "great", emoji: "😄", color: "border-green-400 bg-green-50 dark:bg-green-950/40 hover:bg-green-100 dark:hover:bg-green-950/40" },
+  { value: "good", emoji: "🙂", color: "border-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-950/40" },
+  { value: "okay", emoji: "😐", color: "border-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-950/40" },
+  { value: "low", emoji: "😔", color: "border-orange-400 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-950/40" },
+  { value: "stressed", emoji: "😰", color: "border-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/40" },
+];
+
+export default function DailyCheckInPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [submitted, setSubmitted] = useState(false);
+
+  const [form, setForm] = useState({
+    mood: "",
+    energy_level: 3,
+    sleep_hours: "",
+    exercise_minutes: "",
+    notes: "",
+  });
+
+  // #1456 — Detect if the user already checked in today so we can disable the form.
+  const today = todayISO();
+  const { data: todayCheckInsData, isLoading: loadingToday } = useQuery({
+    queryKey: ["wellness-checkins-today", today],
+    queryFn: () =>
+      api
+        .get("/wellness/check-ins", {
+          params: { start_date: today, end_date: today, per_page: 1 },
+        })
+        .then((r) => r.data),
+  });
+  const todaysCheckIn = (todayCheckInsData?.data || [])[0] || null;
+  const alreadyCheckedIn = !!todaysCheckIn;
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post("/wellness/check-in", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["wellness-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["wellness-checkins"] });
+      queryClient.invalidateQueries({ queryKey: ["wellness-checkins-today"] });
+      setSubmitted(true);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.mood) return;
+
+    mutation.mutate({
+      mood: form.mood,
+      energy_level: form.energy_level,
+      sleep_hours: form.sleep_hours ? parseFloat(form.sleep_hours) : null,
+      exercise_minutes: form.exercise_minutes ? parseInt(form.exercise_minutes) : 0,
+      notes: form.notes || null,
+    });
+  };
+
+  if (submitted || alreadyCheckedIn) {
+    return (
+      <div className="max-w-lg mx-auto mt-12">
+        <div className="bg-card rounded-lg border border-border p-8 text-center">
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold tracking-tight text-foreground mb-2">
+            {submitted ? t("wellness.checkIn.completeTitle") : t("wellness.checkIn.alreadyTitle")}
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            {submitted ? t("wellness.checkIn.completeText") : t("wellness.checkIn.alreadyText")}
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => navigate("/wellness/my")}
+              className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium"
+            >
+              {t("wellness.checkIn.viewMyWellness")}
+            </button>
+            <button
+              onClick={() => navigate("/wellness")}
+              className="px-4 py-2 border border-border text-muted-foreground rounded-lg hover:bg-muted text-sm"
+            >
+              {t("wellness.checkIn.explorePrograms")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingToday) {
+    return (
+      <div className="max-w-lg mx-auto mt-12 text-center text-muted-foreground">
+        {t("wellness.checkIn.loading")}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2 rounded-md hover:bg-muted text-muted-foreground"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">{t("wellness.checkIn.title")}</h1>
+          <p className="text-muted-foreground text-sm">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Mood Picker */}
+        <div className="bg-card rounded-lg border border-border p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Heart className="h-5 w-5 text-pink-500" />
+            <h3 className="text-base font-semibold text-foreground">{t("wellness.checkIn.moodQuestion")}</h3>
+          </div>
+          <div className="grid grid-cols-5 gap-3">
+            {MOODS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setForm({ ...form, mood: m.value })}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                  form.mood === m.value
+                    ? `${m.color} border-opacity-100 ring-2 ring-offset-2 ring-offset-card ring-brand-500`
+                    : "border-border hover:border-border"
+                }`}
+              >
+                <span className="text-3xl">{m.emoji}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t(`wellness.checkIn.mood.${m.value}`)}</span>
+              </button>
+            ))}
+          </div>
+          {!form.mood && mutation.isError && (
+            <p className="text-sm text-red-500 mt-2">{t("wellness.checkIn.selectMood")}</p>
+          )}
+        </div>
+
+        {/* Energy Level */}
+        <div className="bg-card rounded-lg border border-border p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-5 w-5 text-yellow-500" />
+            <h3 className="text-base font-semibold text-foreground">{t("wellness.checkIn.energyLevel")}</h3>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground w-8">{t("wellness.checkIn.low")}</span>
+            <div className="flex-1 flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setForm({ ...form, energy_level: level })}
+                  className={`flex-1 h-12 rounded-lg flex items-center justify-center text-lg font-bold transition-all ${
+                    form.energy_level >= level
+                      ? "bg-yellow-400 text-yellow-900"
+                      : "bg-muted text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground w-8">{t("wellness.checkIn.high")}</span>
+          </div>
+        </div>
+
+        {/* Sleep & Exercise */}
+        <div className="bg-card rounded-lg border border-border p-4">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Moon className="h-5 w-5 text-indigo-500" />
+                <label className="text-sm font-semibold text-foreground">{t("wellness.checkIn.sleepHours")}</label>
+              </div>
+              <input
+                type="number"
+                value={form.sleep_hours}
+                onChange={(e) => setForm({ ...form, sleep_hours: e.target.value })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                placeholder={t("wellness.checkIn.sleepPlaceholder")}
+                step="0.5"
+                min="0"
+                max="24"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Dumbbell className="h-5 w-5 text-green-500" />
+                <label className="text-sm font-semibold text-foreground">{t("wellness.checkIn.exerciseMinutes")}</label>
+              </div>
+              <input
+                type="number"
+                value={form.exercise_minutes}
+                onChange={(e) => setForm({ ...form, exercise_minutes: e.target.value })}
+                className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+                placeholder={t("wellness.checkIn.exercisePlaceholder")}
+                min="0"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="bg-card rounded-lg border border-border p-4">
+          <label className="block text-sm font-semibold text-foreground mb-3">
+            {t("wellness.checkIn.notesLabel")}
+          </label>
+          <textarea
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            rows={3}
+            className="bg-card text-foreground w-full px-3 py-2 border border-border rounded-md text-[13px]"
+            placeholder={t("wellness.checkIn.notesPlaceholder")}
+          />
+        </div>
+
+        {/* Error */}
+        {mutation.isError && (
+          <p className="text-sm text-red-600 dark:text-red-400 text-center">
+            {(mutation.error as any)?.response?.data?.error?.message || t("wellness.checkIn.error")}
+          </p>
+        )}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={!form.mood || mutation.isPending}
+          className="w-full py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-[13px] font-semibold disabled:opacity-50"
+        >
+          {mutation.isPending ? t("wellness.checkIn.submitting") : t("wellness.checkIn.submit")}
+        </button>
+      </form>
+    </div>
+  );
+}
