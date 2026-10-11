@@ -63,6 +63,18 @@ export function loadKeys(): void {
   } else if (process.env.RSA_PRIVATE_KEY && process.env.RSA_PUBLIC_KEY) {
     privatePem = normalisePem(process.env.RSA_PRIVATE_KEY);
     publicPem = normalisePem(process.env.RSA_PUBLIC_KEY);
+
+    // Diagnostic metadata (no key material logged — headers only).
+    // This appears in Railway logs and tells us exactly what went wrong
+    // without exposing private key content.
+    const privHeader = privatePem.split("\n")[0] ?? "(empty)";
+    const pubHeader  = publicPem.split("\n")[0]  ?? "(empty)";
+    const privLines  = privatePem.split("\n").length;
+    const pubLines   = publicPem.split("\n").length;
+    logger.info(
+      `RSA env vars found — private header: "${privHeader}" (${privLines} lines), ` +
+      `public header: "${pubHeader}" (${pubLines} lines)`,
+    );
   } else {
     // Not a hard crash — let the server start so /health still responds.
     // Every signing/verification call will throw clearly if keys are absent.
