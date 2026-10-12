@@ -93,7 +93,9 @@ export async function createAuthorizationCode(params: {
     code_hash: codeHash,
     client_id: params.clientId,
     user_id: params.userId,
-    organization_id: params.organizationId,
+    // super_admin has no real org (org_id sentinel = 0) — store NULL to
+    // satisfy the nullable FK added by migration 108.
+    organization_id: params.organizationId || null,
     redirect_uri: params.redirectUri,
     scope: params.scope,
     code_challenge: params.codeChallenge || null,
@@ -155,43 +157,52 @@ export async function exchangeAuthorizationCode(params: {
 
   // Look up user and org
   const user = await db("users").where({ id: authCode.user_id }).first();
-  const org = await db("organizations").where({ id: authCode.organization_id }).first();
+  // super_admin auth codes store organization_id = NULL — skip org lookup
+  const isSuperAdminCode = authCode.organization_id == null;
+  const org = isSuperAdminCode
+    ? null
+    : await db("organizations").where({ id: authCode.organization_id }).first();
 
-  if (!user || !org) {
-    throw new OAuthError("invalid_grant", "User or organization not found");
+  if (!user) {
+    throw new OAuthError("invalid_grant", "User not found");
+  }
+  if (!isSuperAdminCode && !org) {
+    throw new OAuthError("invalid_grant", "Organization not found");
   }
 
-  const organizationAccess = await evaluateOrganizationAccess({
-    organizationId: org.id,
-    organization: org,
-    paymentResolutionRequest: true,
-  });
-  if (!organizationAccess.allowed) {
-    await logAudit({
-      organizationId: org.id,
-      userId: user.id,
-      action: AuditAction.OAUTH_TOKEN,
-      resourceType: "oauth_token",
-      resourceId: params.clientId,
-      details: {
-        outcome: "denied",
-        reason: "organization_login_blocked",
-        grant_type: "authorization_code",
-        client_id: params.clientId,
-      },
+  if (!isSuperAdminCode) {
+    const organizationAccess = await evaluateOrganizationAccess({
+      organizationId: org!.id,
+      organization: org!,
+      paymentResolutionRequest: true,
     });
-    throw new OAuthError("access_denied", organizationAccess.message, 403);
+    if (!organizationAccess.allowed) {
+      await logAudit({
+        organizationId: org!.id,
+        userId: user.id,
+        action: AuditAction.OAUTH_TOKEN,
+        resourceType: "oauth_token",
+        resourceId: params.clientId,
+        details: {
+          outcome: "denied",
+          reason: "organization_login_blocked",
+          grant_type: "authorization_code",
+          client_id: params.clientId,
+        },
+      });
+      throw new OAuthError("access_denied", organizationAccess.message, 403);
+    }
   }
 
   // Issue tokens
   return issueTokens({
     userId: user.id,
-    orgId: org.id,
+    orgId: org?.id ?? 0,
     email: user.email,
     role: user.role as UserRole,
     firstName: user.first_name,
     lastName: user.last_name,
-    orgName: org.name,
+    orgName: org?.name ?? "EMP Cloud Platform",
     scope: authCode.scope,
     clientId: params.clientId,
     nonce: authCode.nonce,
@@ -248,12 +259,14 @@ export async function issueTokens(params: {
     permissions,
   });
 
-  // Store access token record (for revocation)
+  // Store access token record (for revocation).
+  // super_admin has no real org (org_id = 0 is a JWT sentinel) — store NULL
+  // so the nullable FK to organizations is satisfied.
   const [accessTokenId] = await db("oauth_access_tokens").insert({
     jti,
     client_id: params.clientId,
     user_id: params.userId,
-    organization_id: params.orgId,
+    organization_id: params.orgId || null,
     scope: params.scope,
     expires_at: new Date(Date.now() + expiresIn * 1000),
     created_at: new Date(),
@@ -266,7 +279,7 @@ export async function issueTokens(params: {
     access_token_id: accessTokenId,
     client_id: params.clientId,
     user_id: params.userId,
-    organization_id: params.orgId,
+    organization_id: params.orgId || null,
     scope: params.scope,
     family_id: familyId,
     expires_at: new Date(Date.now() + refreshExpiresIn * 1000),
@@ -343,34 +356,46 @@ export async function refreshAccessToken(params: {
     .where({ id: storedToken.id })
     .update({ revoked_at: new Date() });
 
-  // Look up user and org
+  // Look up user
   const user = await db("users").where({ id: storedToken.user_id }).first();
-  const org = await db("organizations").where({ id: storedToken.organization_id }).first();
-
-  if (!user || !org) {
-    throw new OAuthError("invalid_grant", "User or organization not found");
+  if (!user) {
+    throw new OAuthError("invalid_grant", "User not found");
   }
 
-  const organizationAccess = await evaluateOrganizationAccess({
-    organizationId: org.id,
-    organization: org,
-    paymentResolutionRequest: true,
-  });
-  if (!organizationAccess.allowed) {
-    await logAudit({
-      organizationId: org.id,
-      userId: user.id,
-      action: AuditAction.OAUTH_TOKEN,
-      resourceType: "oauth_token",
-      resourceId: params.clientId,
-      details: {
-        outcome: "denied",
-        reason: "organization_login_blocked",
-        grant_type: "refresh_token",
-        client_id: params.clientId,
-      },
+  // Look up org — super_admin tokens store organization_id = NULL (no real
+  // org). Skip the org-active / payment-restriction checks for super_admin;
+  // they are platform-level and cannot be payment-restricted.
+  const isSuperAdmin = user.role === "super_admin";
+  const org = storedToken.organization_id
+    ? await db("organizations").where({ id: storedToken.organization_id }).first()
+    : null;
+
+  if (!isSuperAdmin && !org) {
+    throw new OAuthError("invalid_grant", "Organization not found");
+  }
+
+  if (!isSuperAdmin) {
+    const organizationAccess = await evaluateOrganizationAccess({
+      organizationId: org!.id,
+      organization: org!,
+      paymentResolutionRequest: true,
     });
-    throw new OAuthError("access_denied", organizationAccess.message, 403);
+    if (!organizationAccess.allowed) {
+      await logAudit({
+        organizationId: org!.id,
+        userId: user.id,
+        action: AuditAction.OAUTH_TOKEN,
+        resourceType: "oauth_token",
+        resourceId: params.clientId,
+        details: {
+          outcome: "denied",
+          reason: "organization_login_blocked",
+          grant_type: "refresh_token",
+          client_id: params.clientId,
+        },
+      });
+      throw new OAuthError("access_denied", organizationAccess.message, 403);
+    }
   }
 
   // Issue new token pair (same family)
@@ -382,14 +407,19 @@ export async function refreshAccessToken(params: {
   // changes within one access-token TTL.
   const permissions = await resolveUserPermissions(user.id, user.role as UserRole);
 
+  // For super_admin (no real org), use 0 as the org_id sentinel in the JWT
+  // and NULL for DB storage — consistent with initial login in auth.service.ts.
+  const orgId = org?.id ?? 0;
+  const orgName = org?.name ?? "EMP Cloud Platform";
+
   const accessToken = signAccessToken({
     sub: user.id,
-    org_id: org.id,
+    org_id: orgId,
     email: user.email,
     role: user.role as UserRole,
     first_name: user.first_name,
     last_name: user.last_name,
-    org_name: org.name,
+    org_name: orgName,
     scope: storedToken.scope,
     client_id: params.clientId,
     jti,
@@ -400,7 +430,7 @@ export async function refreshAccessToken(params: {
     jti,
     client_id: params.clientId,
     user_id: user.id,
-    organization_id: org.id,
+    organization_id: orgId || null,
     scope: storedToken.scope,
     expires_at: new Date(Date.now() + expiresIn * 1000),
     created_at: new Date(),
@@ -412,7 +442,7 @@ export async function refreshAccessToken(params: {
     access_token_id: newAccessTokenId,
     client_id: params.clientId,
     user_id: user.id,
-    organization_id: org.id,
+    organization_id: orgId || null,
     scope: storedToken.scope,
     family_id: storedToken.family_id, // same family for rotation detection
     expires_at: new Date(Date.now() + refreshExpiresIn * 1000),
@@ -518,10 +548,14 @@ export async function introspectToken(params: {
     .first();
 
   if (refreshToken && !refreshToken.revoked_at && new Date(refreshToken.expires_at) > new Date()) {
-    const organizationAccess = await evaluateOrganizationAccess({
-      organizationId: Number(refreshToken.organization_id),
-    });
-    if (!organizationAccess.allowed) return { active: false };
+    // super_admin tokens have organization_id = NULL — they bypass org-level
+    // access checks (super_admin is a platform role, not org-scoped).
+    if (refreshToken.organization_id != null) {
+      const organizationAccess = await evaluateOrganizationAccess({
+        organizationId: Number(refreshToken.organization_id),
+      });
+      if (!organizationAccess.allowed) return { active: false };
+    }
     return {
       active: true,
       scope: refreshToken.scope,
