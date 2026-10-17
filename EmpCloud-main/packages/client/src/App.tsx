@@ -43,7 +43,7 @@ const AcceptInvitationPage = lazy(() => import("@/pages/auth/AcceptInvitationPag
 const DashboardPage = lazy(() => import("@/pages/dashboard/DashboardPage"));
 const OnboardingWizard = lazy(() => import("@/pages/onboarding/OnboardingWizard"));
 const SelfServiceDashboardPage = lazy(() => import("@/pages/self-service/SelfServiceDashboardPage"));
-const PaymentRequiredPage = lazy(() => import("@/pages/billing/PaymentRequiredPage"));
+const LandingPage = lazy(() => import("@/pages/landing/LandingPage"));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -165,6 +165,7 @@ export default function App() {
       <ToastContainer />
       <Routes>
         {/* Public routes */}
+        <Route path="/home" element={<PublicRoute><LandingPage /></PublicRoute>} />
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
