@@ -38,12 +38,16 @@ const productionTransports: winston.transport[] = [
   }),
 ];
 
+// On Vercel the filesystem is read-only — DailyRotateFile would throw EROFS
+// on the first log write. Skip file transports; Vercel captures stdout/stderr.
+const isVercel = !!process.env.VERCEL;
+
 export const logger = winston.createLogger({
   level: config.log.level,
   format: config.log.format === "pretty" ? prettyFormat : jsonFormat,
   transports: [
     new winston.transports.Console(),
-    ...(process.env.NODE_ENV === "production" ? productionTransports : []),
+    ...(!isVercel && process.env.NODE_ENV === "production" ? productionTransports : []),
   ],
   silent: process.env.NODE_ENV === "test",
 });

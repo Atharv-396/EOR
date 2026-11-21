@@ -10,9 +10,21 @@ import {
   isPaymentResolutionPage,
 } from "@/lib/organization-access";
 
+// ---------------------------------------------------------------------------
+// Base URL resolution
+// ---------------------------------------------------------------------------
+// In development Vite proxies /api → localhost:3000, so a relative path works.
+// When frontend and backend are on separate domains (e.g. Vercel frontend +
+// Vercel backend), set VITE_API_BASE_URL to the backend origin:
+//   VITE_API_BASE_URL=https://empcloud-api.vercel.app
+// The value must NOT have a trailing slash.
+// ---------------------------------------------------------------------------
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+
 const api = axios.create({
-  baseURL: "/api/v1",
+  baseURL: `${API_ORIGIN}/api/v1`,
   headers: { "Content-Type": "application/json" },
+  withCredentials: false,
 });
 
 // Attach access token to every request
@@ -137,7 +149,7 @@ api.interceptors.response.use(
           // If a refresh is already in-flight, reuse its promise
           if (!refreshPromise) {
             refreshPromise = axios
-              .post("/oauth/token", {
+              .post(`${API_ORIGIN}/oauth/token`, {
                 grant_type: "refresh_token",
                 refresh_token: refreshToken,
                 client_id: "empcloud-dashboard",
@@ -183,7 +195,7 @@ api.interceptors.response.use(
 
       // Forward to server for Log Dashboard (skip if this IS the client-error endpoint)
       if (!url.includes("client-error")) {
-        fetch("/api/v1/logs/client-error", {
+        fetch(`${API_ORIGIN}/api/v1/logs/client-error`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -203,7 +215,7 @@ api.interceptors.response.use(
 
       // Forward network errors to server
       if (!error.config?.url?.includes("client-error")) {
-        fetch("/api/v1/logs/client-error", {
+        fetch(`${API_ORIGIN}/api/v1/logs/client-error`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

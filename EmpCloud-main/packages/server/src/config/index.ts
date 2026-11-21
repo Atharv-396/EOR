@@ -171,6 +171,11 @@ export const config = {
   // Empty token = bot disabled (no polling, no report delivery).
   telegram: {
     botToken: process.env.TELEGRAM_BOT_TOKEN || "",
+    // Vercel webhook mode: URL that Telegram will POST updates to.
+    // e.g. https://<your-backend>.vercel.app/api/telegram/webhook
+    webhookUrl: process.env.TELEGRAM_WEBHOOK_URL || "",
+    // Optional secret token set via setWebhook(); validated in the webhook route.
+    webhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || "",
   },
 
   assistant: {

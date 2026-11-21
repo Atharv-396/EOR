@@ -128,8 +128,11 @@ class LocalStorageAdapter implements StorageAdapter {
 class S3StorageAdapter implements StorageAdapter {
   readonly isRemote = true;
 
-  private client: import("@aws-sdk/client-s3").S3Client | null = null;
   private bucket: string;
+  private region: string;
+  private endpoint: string | undefined;
+  private accessKey: string;
+  private secretKey: string;
   private publicBaseUrl: string | null;
   private signedUrlExpiry: number;
 
@@ -148,42 +151,36 @@ class S3StorageAdapter implements StorageAdapter {
       );
     }
 
-    const accessKey = process.env.STORAGE_S3_ACCESS_KEY;
-    const secretKey = process.env.STORAGE_S3_SECRET_KEY;
-    const region = process.env.STORAGE_S3_REGION ?? "auto";
-    const endpoint = process.env.STORAGE_S3_ENDPOINT;
+    this.accessKey = process.env.STORAGE_S3_ACCESS_KEY ?? "";
+    this.secretKey = process.env.STORAGE_S3_SECRET_KEY ?? "";
+    this.region = process.env.STORAGE_S3_REGION ?? "auto";
+    this.endpoint = process.env.STORAGE_S3_ENDPOINT;
 
-    if (!accessKey || !secretKey) {
+    if (!this.accessKey || !this.secretKey) {
       throw new Error(
         "STORAGE_S3_ACCESS_KEY and STORAGE_S3_SECRET_KEY are required when STORAGE_BACKEND=s3.",
       );
     }
 
-    // Lazy import — only loaded when the S3 adapter is actually instantiated.
-    // This prevents the AWS SDK from being parsed on cold starts where local
-    // storage is used (keeps startup time lower for local dev).
-    import("@aws-sdk/client-s3").then(({ S3Client }) => {
-      this.client = new S3Client({
-        region,
-        ...(endpoint ? { endpoint } : {}),
-        credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
-        // Required for Cloudflare R2 (path-style) and some custom S3 endpoints.
-        forcePathStyle: !!endpoint,
-      });
-      logger.info(`S3 storage adapter initialised (bucket: ${this.bucket}, region: ${region})`);
-    }).catch((err) => {
-      logger.error("Failed to initialise S3 storage adapter", { error: (err as Error).message });
-    });
+    logger.info(`S3 storage adapter configured (bucket: ${this.bucket}, region: ${this.region})`);
   }
 
-  private getClient(): import("@aws-sdk/client-s3").S3Client {
-    if (!this.client) throw new Error("S3 client not yet initialised");
-    return this.client;
+  /** Create an S3Client on demand — the constructor is synchronous so no race condition. */
+  private async getClient(): Promise<import("@aws-sdk/client-s3").S3Client> {
+    const { S3Client } = await import("@aws-sdk/client-s3");
+    return new S3Client({
+      region: this.region,
+      ...(this.endpoint ? { endpoint: this.endpoint } : {}),
+      credentials: { accessKeyId: this.accessKey, secretAccessKey: this.secretKey },
+      // Required for Cloudflare R2 (path-style) and some custom S3 endpoints.
+      forcePathStyle: !!this.endpoint,
+    });
   }
 
   async upload(input: StorageUploadInput): Promise<StorageFile> {
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-    await this.getClient().send(
+    const client = await this.getClient();
+    await client.send(
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: input.key,
@@ -203,8 +200,9 @@ class S3StorageAdapter implements StorageAdapter {
   async getDownloadUrl(storageKey: string, expiresInSeconds?: number): Promise<string> {
     const { GetObjectCommand } = await import("@aws-sdk/client-s3");
     const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const client = await this.getClient();
     return getSignedUrl(
-      this.getClient(),
+      client,
       new GetObjectCommand({ Bucket: this.bucket, Key: storageKey }),
       { expiresIn: expiresInSeconds ?? this.signedUrlExpiry },
     );
@@ -212,12 +210,12 @@ class S3StorageAdapter implements StorageAdapter {
 
   async delete(storageKey: string): Promise<void> {
     const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+    const client = await this.getClient();
     try {
-      await this.getClient().send(
+      await client.send(
         new DeleteObjectCommand({ Bucket: this.bucket, Key: storageKey }),
       );
     } catch (err) {
-      // Log but do not throw — a missing file is not a fatal error
       logger.warn("S3 delete failed (best-effort)", {
         key: storageKey,
         error: (err as Error).message,

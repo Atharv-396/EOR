@@ -14,6 +14,7 @@ import { AuditAction } from "@empcloud/shared";
 import { paramInt } from "../../utils/params.js";
 import { ConflictError, ValidationError } from "../../utils/errors.js";
 import { getDB } from "../../db/connection.js";
+import { getStorageAdapter, photoKey } from "../../services/storage/storage.service.js";
 import {
   upsertEmployeeProfileSchema,
   createAddressSchema,
@@ -38,23 +39,10 @@ import { logger } from "../../utils/logger.js";
 // to catch the obvious typos. The server still rejects empty / no-@.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Photo upload multer config
-const photoStorage = multer.diskStorage({
-  destination: (req: Request, _file, cb) => {
-    const orgId = req.user?.org_id ?? "unknown";
-    const uploadDir = path.join(process.cwd(), "uploads", "photos", String(orgId));
-    fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
-  },
-});
-
+// Photo upload multer config — memoryStorage so the buffer is available
+// for the storage adapter (local disk or S3/R2).
 const photoUpload = multer({
-  storage: photoStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
@@ -546,10 +534,36 @@ router.post("/:id/photo", authenticate, requireSelfOrHR("id", ["employees:edit_a
     if (!req.file) throw new ValidationError("No photo file provided");
     const userId = paramInt(req.params.id);
     const orgId = req.user!.org_id;
-    const relativePath = `uploads/photos/${orgId}/${req.file.filename}`;
+
+    // Store via adapter (local or S3/R2)
+    const storage = getStorageAdapter();
+    const key = photoKey(orgId, req.file.originalname);
+    const stored = await storage.upload({
+      key,
+      buffer: req.file.buffer,
+      mimeType: req.file.mimetype,
+      originalName: req.file.originalname,
+    });
+
     const db = getDB();
-    await db("users").where({ id: userId, organization_id: orgId }).update({ photo_path: relativePath, updated_at: new Date() });
-    sendSuccess(res, { photo_url: `/api/v1/employees/${userId}/photo`, photo_path: relativePath });
+
+    // Best-effort: delete the previous photo if one exists
+    const existing = await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .select("photo_path")
+      .first();
+    if (existing?.photo_path) {
+      try { await storage.delete(existing.photo_path); } catch { /* ignore */ }
+    }
+
+    await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .update({ photo_path: stored.storageKey, updated_at: new Date() });
+
+    sendSuccess(res, {
+      photo_url: `/api/v1/employees/${userId}/photo`,
+      photo_path: stored.storageKey,
+    });
   } catch (err) { next(err); }
 });
 
@@ -559,10 +573,23 @@ router.get("/:id/photo", authenticate, async (req: Request, res: Response, next:
     const userId = paramInt(req.params.id);
     const orgId = req.user!.org_id;
     const db = getDB();
-    const user = await db("users").where({ id: userId, organization_id: orgId }).select("photo_path").first();
+    const user = await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .select("photo_path")
+      .first();
     if (!user || !user.photo_path) {
       return res.status(404).json({ success: false, error: { message: "No photo found" } });
     }
+
+    const storage = getStorageAdapter();
+
+    if (storage.isRemote) {
+      // S3/R2: redirect to a short-lived signed URL (5 min)
+      const signedUrl = await storage.getDownloadUrl(user.photo_path, 300);
+      return res.redirect(302, signedUrl);
+    }
+
+    // Local filesystem: serve directly
     const filePath = path.join(process.cwd(), user.photo_path);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, error: { message: "Photo file not found" } });
@@ -572,22 +599,26 @@ router.get("/:id/photo", authenticate, async (req: Request, res: Response, next:
 });
 
 // DELETE /api/v1/employees/:id/photo
-// #1650 — "Option to revert to initials avatar" from the issue. Removes the
-// stored file from disk and clears `photo_path` so display fallbacks kick in
-// everywhere. Self or HR only — same auth as upload.
 router.delete("/:id/photo", authenticate, requireSelfOrHR("id", ["employees:edit_all"], ["employees:edit_own"]), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = paramInt(req.params.id);
     const orgId = req.user!.org_id;
     const db = getDB();
-    const user = await db("users").where({ id: userId, organization_id: orgId }).select("photo_path").first();
+    const user = await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .select("photo_path")
+      .first();
     if (!user) throw new ValidationError("User not found");
+
     if (user.photo_path) {
-      const filePath = path.join(process.cwd(), user.photo_path);
-      // Best-effort delete; missing file shouldn't block the column reset.
-      try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+      // Best-effort file deletion via storage adapter
+      try { await getStorageAdapter().delete(user.photo_path); } catch { /* ignore */ }
     }
-    await db("users").where({ id: userId, organization_id: orgId }).update({ photo_path: null, updated_at: new Date() });
+
+    await db("users")
+      .where({ id: userId, organization_id: orgId })
+      .update({ photo_path: null, updated_at: new Date() });
+
     await logAudit({
       organizationId: orgId,
       userId: req.user!.sub,

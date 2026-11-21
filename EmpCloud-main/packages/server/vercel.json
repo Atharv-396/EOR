@@ -1,0 +1,67 @@
+{
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../shared && pnpm build && cd ../server && pnpm build",
+  "outputDirectory": "dist",
+
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 60
+    },
+    "api/cron/health-check.ts": {
+      "maxDuration": 30
+    },
+    "api/cron/trial-expiration.ts": {
+      "maxDuration": 60
+    },
+    "api/cron/attendance-report.ts": {
+      "maxDuration": 120
+    },
+    "api/telegram/webhook.ts": {
+      "maxDuration": 10
+    }
+  },
+
+  "crons": [
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/trial-expiration",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/attendance-report",
+      "schedule": "0 0 * * *"
+    }
+  ],
+
+  "rewrites": [
+    {
+      "source": "/api/cron/:path*",
+      "destination": "/api/cron/:path*"
+    },
+    {
+      "source": "/api/telegram/:path*",
+      "destination": "/api/telegram/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS" },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type,Authorization,X-EmpCloud-API-Key,X-Device-API-Key,X-Request-ID"
+        }
+      ]
+    }
+  ]
+}

@@ -152,7 +152,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     navigator.serviceWorker?.addEventListener("message", onSwMessage);
 
     // Function-form auth re-reads the freshest token on every (re)connect.
-    const socket = io("/chat", {
+    // API_ORIGIN is empty in dev (same-origin via Vite proxy) and set to the
+    // backend URL in production when frontend/backend are on separate domains.
+    const wsOrigin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+    const socket = io(`${wsOrigin}/chat`, {
       path: "/socket.io",
       transports: ["websocket"],
       auth: (cb) => cb({ token: useAuthStore.getState().accessToken ?? "" }),

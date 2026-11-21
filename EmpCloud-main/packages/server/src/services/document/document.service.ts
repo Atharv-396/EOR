@@ -2,7 +2,6 @@
 // EMP CLOUD — Document Service
 // =============================================================================
 
-import fs from "node:fs";
 import { getDB } from "../../db/connection.js";
 import { NotFoundError, ForbiddenError, ValidationError } from "../../utils/errors.js";
 import { getStorageAdapter } from "../storage/storage.service.js";
@@ -307,11 +306,12 @@ export async function deleteDocument(orgId: number, docId: number) {
     .first();
   if (!doc) throw new NotFoundError("Document");
 
-  // Remove physical file
+  // Remove stored file via the storage adapter (local or S3/R2).
+  // Best-effort: a missing file should not block the DB row deletion.
   try {
-    fs.unlinkSync(doc.file_path);
+    await getStorageAdapter().delete(doc.file_path);
   } catch {
-    // File may already be deleted — continue
+    // already gone — continue
   }
 
   await db("employee_documents").where({ id: docId }).delete();
