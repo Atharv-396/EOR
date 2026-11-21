@@ -42,84 +42,151 @@ export async function register(params: {
 }): Promise<{ user: object; org: object; tokens: object }> {
   const db = getDB();
 
-  // Check if email already exists
-  const existing = await db("users").where({ email: params.email }).first();
-  if (existing) {
-    throw new ConflictError("An account with this email already exists");
-  }
-
-  const passwordHash = await hashPassword(params.password);
-
-  // Create organization (org_id=0 is reserved for super_admin platform accounts)
-  const [orgId] = await db("organizations").insert({
-    name: params.orgName,
-    legal_name: params.orgLegalName || params.orgName,
-    email: params.orgEmail || params.email,
-    country: params.orgCountry || "IN",
-    state: params.orgState || null,
-    timezone: params.orgTimezone || "Asia/Kolkata",
-    is_active: true,
-    current_user_count: 1,
-    total_allowed_user_count: 10, // default starter
-    created_at: new Date(),
-    updated_at: new Date(),
-  });
-
-  // Create admin user
-  const now = new Date();
-  const [userId] = await db("users").insert({
-    organization_id: orgId,
-    first_name: params.firstName,
-    last_name: params.lastName,
-    email: params.email,
-    password: passwordHash,
-    password_changed_at: now,
-    role: "org_admin",
-    status: 1,
-    date_of_joining: now.toISOString().slice(0, 10),
-    created_at: now,
-    updated_at: now,
-  });
-
-  const user = await db("users").where({ id: userId }).first();
-  const org = await db("organizations").where({ id: orgId }).first();
-
-  // Seed default document categories so the new org's employees can upload
-  // documents immediately (the upload form's Category field is required and
-  // would otherwise be empty). Best-effort: a failure here must not block
-  // registration.
   try {
-    await seedDefaultCategories(orgId);
+    // Check if email already exists — use FOR UPDATE to prevent race conditions
+    const existing = await db("users").where({ email: params.email }).forUpdate().first();
+    if (existing) {
+      logger.warn("Registration attempt with duplicate email", {
+        email: params.email,
+        existingUserId: existing.id,
+      });
+      throw new ConflictError("An account with this email already exists");
+    }
+
+    const passwordHash = await hashPassword(params.password);
+
+    // Create organization within a transaction to ensure atomicity.
+    // If any step fails, the entire registration rolls back.
+    const result = await db.transaction(async (trx) => {
+      // Create organization (org_id=0 is reserved for super_admin platform accounts)
+      const [orgId] = await trx("organizations").insert({
+        name: params.orgName,
+        legal_name: params.orgLegalName || params.orgName,
+        email: params.orgEmail || params.email,
+        country: params.orgCountry || "IN",
+        state: params.orgState || null,
+        timezone: params.orgTimezone || "Asia/Kolkata",
+        is_active: true,
+        current_user_count: 1,
+        total_allowed_user_count: 10, // default starter
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      logger.debug("Organization created", { orgId, orgName: params.orgName });
+
+      // Create admin user
+      const now = new Date();
+      const [userId] = await trx("users").insert({
+        organization_id: orgId,
+        first_name: params.firstName,
+        last_name: params.lastName,
+        email: params.email,
+        password: passwordHash,
+        password_changed_at: now,
+        role: "org_admin",
+        status: 1,
+        date_of_joining: now.toISOString().slice(0, 10),
+        created_at: now,
+        updated_at: now,
+      });
+
+      logger.debug("User created", { userId, email: params.email, orgId });
+
+      const user = await trx("users").where({ id: userId }).first();
+      const org = await trx("organizations").where({ id: orgId }).first();
+
+      if (!user || !org) {
+        throw new Error("Failed to retrieve newly created user or organization");
+      }
+
+      return { user, org, orgId };
+    });
+
+    const { user, org, orgId } = result;
+
+    // Seed default document categories — best-effort, non-blocking
+    try {
+      await seedDefaultCategories(orgId);
+    } catch (err) {
+      logger.error("Failed to seed default document categories", {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Continue — document categories are nice-to-have, not required
+    }
+
+    // Issue tokens — if this fails, org+user are already created but will be orphaned
+    let tokens: object;
+    try {
+      tokens = await issueTokens({
+        userId: user.id,
+        orgId: org.id,
+        email: user.email,
+        role: user.role as UserRole,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        orgName: org.name,
+        scope: "openid profile email",
+        clientId: EMPCLOUD_CLIENT_ID,
+      });
+      logger.debug("Tokens issued successfully", { userId: user.id, orgId: org.id });
+    } catch (tokenErr) {
+      logger.error("Token issuance failed after user registration", {
+        userId: user.id,
+        orgId: org.id,
+        email: user.email,
+        tokenError: tokenErr instanceof Error ? tokenErr.message : String(tokenErr),
+      });
+      throw tokenErr;
+    }
+
+    logger.info("New organization registered", {
+      orgId: org.id,
+      orgName: org.name,
+      email: user.email,
+      userId: user.id,
+    });
+
+    // Fire-and-forget welcome email — the service itself swallows errors
+    void sendWelcomeEmail({
+      to: user.email,
+      firstName: user.first_name,
+      orgName: org.name,
+    }).catch((err) => {
+      logger.warn("Welcome email failed (non-blocking)", {
+        email: user.email,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    // Return sanitized user (no password)
+    const { password: _, ...safeUser } = user;
+    return { user: safeUser, org, tokens };
   } catch (err) {
-    logger.error(`Failed to seed default document categories for org ${orgId}:`, err);
+    // Log all registration errors with useful context for debugging
+    if (err instanceof ConflictError) {
+      // 409 — duplicate email, already logged above
+      throw err;
+    }
+
+    if (err instanceof Error) {
+      logger.error("Registration failed", {
+        email: params.email,
+        orgName: params.orgName,
+        errorMessage: err.message,
+        errorCode: (err as any).code,
+      });
+    } else {
+      logger.error("Registration failed (non-Error thrown)", {
+        email: params.email,
+        orgName: params.orgName,
+        error: String(err),
+      });
+    }
+
+    throw err;
   }
-
-  // Issue tokens
-  const tokens = await issueTokens({
-    userId: user.id,
-    orgId: org.id,
-    email: user.email,
-    role: user.role as UserRole,
-    firstName: user.first_name,
-    lastName: user.last_name,
-    orgName: org.name,
-    scope: "openid profile email",
-    clientId: EMPCLOUD_CLIENT_ID,
-  });
-
-  logger.info(`New org registered: ${org.name} (ID: ${org.id}) by ${user.email}`);
-
-  // Fire-and-forget welcome email — the service itself swallows errors so
-  // a SendGrid outage can't block registration.
-  void sendWelcomeEmail({
-    to: user.email,
-    firstName: user.first_name,
-    orgName: org.name,
-  });
-
-  // Return sanitized user (no password)
-  const { password: _, ...safeUser } = user;
-  return { user: safeUser, org, tokens };
 }
 
 // ---------------------------------------------------------------------------
