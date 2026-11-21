@@ -11,7 +11,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { config } from "./config/index.js";
 import { logger } from "./utils/logger.js";
-import { initDB, closeDB } from "./db/connection.js";
+import { initDB, closeDB, getDB } from "./db/connection.js";
 import { loadKeys } from "./services/oauth/jwt.service.js";
 import { attachChatRealtime } from "./realtime/io.js";
 import { errorHandler } from "./api/middleware/error.middleware.js";
@@ -217,6 +217,42 @@ async function main() {
       data.version = "1.0.0";
     }
     sendSuccess(res, data);
+  });
+
+  // Database readiness check — used by Kubernetes, load balancers, and deployment tools
+  // to verify the backend can reach MySQL before routing traffic to it.
+  // Returns 200 if SELECT 1 succeeds, 503 if it fails or times out.
+  // Never exposes database credentials, host details, or internal error messages.
+  app.get("/health/ready", async (_req, res) => {
+    try {
+      const db = getDB();
+      // Execute SELECT 1 with a short 5-second timeout to avoid hanging
+      // if the database connection pool is exhausted or MySQL is unresponsive.
+      await Promise.race([
+        db.raw("SELECT 1"),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Database check timeout")), 5000)
+        ),
+      ]);
+
+      // Database is reachable and responsive
+      res.status(200).json({
+        success: true,
+        status: "ready",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      // Database is unavailable. Return 503 Service Unavailable without exposing
+      // the actual error, credentials, or connection details.
+      logger.warn("Database readiness check failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.status(503).json({
+        success: false,
+        status: "not_ready",
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   // OIDC Discovery (must be at root)
