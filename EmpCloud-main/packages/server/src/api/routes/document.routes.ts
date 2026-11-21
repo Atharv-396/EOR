@@ -4,12 +4,14 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import path from "node:path";
+import fs from "node:fs";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { requirePermission } from "../middleware/rbac.middleware.js";
 import { upload } from "../middleware/upload.middleware.js";
 import { sendSuccess, sendPaginated } from "../../utils/response.js";
 import { logAudit } from "../../services/audit/audit.service.js";
 import * as documentService from "../../services/document/document.service.js";
+import { getStorageAdapter, documentKey } from "../../services/storage/storage.service.js";
 import {
   createDocCategorySchema,
   updateDocCategorySchema,
@@ -116,22 +118,34 @@ router.post("/upload", authenticate, requirePermission("documents:upload", "docu
     }
 
     const userId = req.body.user_id ? Number(req.body.user_id) : req.user!.sub;
+    const orgId = req.user!.org_id;
+
+    // Store the file via the storage adapter (local disk or S3/R2)
+    const storage = getStorageAdapter();
+    const key = documentKey(orgId, userId, file.originalname);
+    const stored = await storage.upload({
+      key,
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+    });
+
     const doc = await documentService.uploadDocument(
-      req.user!.org_id,
+      orgId,
       userId,
       req.user!.sub,
       {
         category_id: categoryId,
         name: req.body.name || file.originalname,
-        file_path: file.path,
-        file_size: file.size,
+        file_path: stored.storageKey,  // key stored in DB (same shape local/S3)
+        file_size: stored.size,
         mime_type: file.mimetype,
         expires_at: req.body.expires_at || null,
       },
     );
 
     await logAudit({
-      organizationId: req.user!.org_id,
+      organizationId: orgId,
       userId: req.user!.sub,
       action: AuditAction.DOCUMENT_UPLOADED,
       resourceType: "document",
@@ -218,32 +232,36 @@ router.get("/:id", authenticate, requirePermission("documents:view", "documents:
 router.get("/:id/download", authenticate, requirePermission("documents:view", "documents:manage"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const doc = await documentService.getDocumentForDownload(req.user!.org_id, paramInt(req.params.id), req.user!.sub, req.user!.role);
-    const absolutePath = path.resolve(doc.file_path);
 
-    // Path traversal protection: ensure resolved path is within the uploads directory
+    const storage = getStorageAdapter();
+
+    if (storage.isRemote) {
+      // S3/R2: generate a pre-signed URL and redirect the client to it.
+      const signedUrl = await storage.getDownloadUrl(doc.file_path, 300); // 5 minutes
+      res.redirect(302, signedUrl);
+      return;
+    }
+
+    // Local filesystem: serve the file directly (original behaviour).
+    const absolutePath = path.resolve(process.cwd(), doc.file_path);
+
+    // Path traversal protection
     const uploadsBase = path.resolve(process.cwd(), "uploads");
-    if (!absolutePath.startsWith(uploadsBase)) {
+    if (!absolutePath.startsWith(uploadsBase) || doc.file_path.includes("..")) {
       res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Invalid file path" } });
       return;
     }
 
-    // Block paths containing traversal sequences
-    if (doc.file_path.includes("..")) {
-      res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Invalid file path" } });
+    if (!fs.existsSync(absolutePath)) {
+      res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "File not found on disk" } });
       return;
     }
 
-    // Ensure the download filename has the correct extension from the stored file
     let downloadName = doc.name || "document";
     const storedExt = path.extname(doc.file_path);
-    if (storedExt && !path.extname(downloadName)) {
-      downloadName += storedExt;
-    }
+    if (storedExt && !path.extname(downloadName)) downloadName += storedExt;
 
-    // Set explicit Content-Type from stored mime_type so browsers handle the file correctly
-    if (doc.mime_type) {
-      res.setHeader("Content-Type", doc.mime_type);
-    }
+    if (doc.mime_type) res.setHeader("Content-Type", doc.mime_type);
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(downloadName)}"`);
     res.download(absolutePath, downloadName);
   } catch (err) { next(err); }

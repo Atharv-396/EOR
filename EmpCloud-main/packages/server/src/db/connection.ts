@@ -61,7 +61,16 @@ export async function initDB(): Promise<Knex> {
       timezone: "Z",
       ...sslConfig,
     },
-    pool: { min: 2, max: 20 },
+    // On Vercel each function instance is short-lived and there can be many
+    // concurrent instances.  min:2 (the traditional default) would hold 2 idle
+    // connections open per instance, quickly exhausting MySQL's connection
+    // limit.  Setting min:0 means idle instances hold zero connections; max:1
+    // caps per-instance concurrency at one (serverless functions handle one
+    // request at a time).  On a traditional long-running server (local dev,
+    // PM2, Railway) we keep the original min:2/max:20 for throughput.
+    pool: process.env.VERCEL
+      ? { min: 0, max: 1, acquireTimeoutMillis: 10_000, idleTimeoutMillis: 10_000 }
+      : { min: 2, max: 20 },
     migrations: {
       directory: "./src/db/migrations",
       extension: "ts",

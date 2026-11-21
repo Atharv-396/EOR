@@ -80,7 +80,9 @@ export function loadKeys(): void {
     // Every signing/verification call will throw clearly if keys are absent.
     logger.warn(
       "RSA keys not found. " +
-      "Provide key files or set RSA_PRIVATE_KEY / RSA_PUBLIC_KEY env vars. " +
+      "For local dev: run `pnpm generate-keys` to create keys/private.pem and keys/public.pem. " +
+      "For Vercel / cloud deployments: set RSA_PRIVATE_KEY and RSA_PUBLIC_KEY environment " +
+      "variables with the full PEM content (use \\\\n for newlines in Railway/Vercel dashboards). " +
       "Authentication will not work until keys are configured.",
     );
     return;

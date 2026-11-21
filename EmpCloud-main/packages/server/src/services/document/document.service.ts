@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import { getDB } from "../../db/connection.js";
 import { NotFoundError, ForbiddenError, ValidationError } from "../../utils/errors.js";
+import { getStorageAdapter } from "../storage/storage.service.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
