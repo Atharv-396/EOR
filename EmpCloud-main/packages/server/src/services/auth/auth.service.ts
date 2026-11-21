@@ -205,98 +205,191 @@ export async function login(params: {
 }> {
   const db = getDB();
 
-  const user = await db("users").where({ email: params.email }).first();
-  if (!user || !user.password) {
-    throw new UnauthorizedError("Invalid email or password");
-  }
+  try {
+    // Look up user by email
+    let user: any;
+    try {
+      user = await db("users").where({ email: params.email }).first();
+    } catch (dbErr) {
+      logger.error("Database error during user lookup", {
+        email: params.email,
+        errorMessage: dbErr instanceof Error ? dbErr.message : String(dbErr),
+      });
+      throw dbErr;
+    }
 
-  // Check if account is deactivated (inactive status or past exit date)
-  if (user.status !== 1) {
-    throw new UnauthorizedError("Account is deactivated");
-  }
-  if (user.date_of_exit) {
-    const exitDate = new Date(user.date_of_exit);
-    exitDate.setHours(23, 59, 59, 999);
-    if (exitDate < new Date()) {
+    if (!user || !user.password) {
+      throw new UnauthorizedError("Invalid email or password");
+    }
+
+    // Check if account is deactivated (inactive status or past exit date)
+    if (user.status !== 1) {
       throw new UnauthorizedError("Account is deactivated");
     }
-  }
-
-  const valid = await verifyPassword(params.password, user.password);
-  if (!valid) {
-    // #1049 — Record failed login attempt in audit log
-    await logAudit({
-      organizationId: user.organization_id,
-      userId: user.id,
-      action: AuditAction.LOGIN_FAILED,
-      details: { email: params.email, reason: "invalid_password" },
-    });
-    throw new UnauthorizedError("Invalid email or password");
-  }
-
-  // Super admins live at organization_id=0 (a sentinel id reserved by
-  // migration 036 — no real org has id=0, MySQL auto_increment starts at
-  // 1). The convention keeps super admins out of every tenant's user
-  // list, but it also means the standard "look up org row and check
-  // is_active" gate would fail closed for every super_admin login since
-  // there is no row at id=0. Skip the org-active gate for super_admins;
-  // for everyone else the gate is unchanged.
-  const isSuperAdmin = user.role === "super_admin";
-  const org = isSuperAdmin
-    ? null
-    : await db("organizations").where({ id: user.organization_id }).first();
-  if (!isSuperAdmin && (!org || !org.is_active)) {
-    throw new UnauthorizedError("Organization is inactive");
-  }
-
-  const organizationAccess = await evaluateOrganizationAccess({
-    organizationId: org?.id ?? 0,
-    organization: org,
-    // Payment-restricted organizations must still be able to authenticate so
-    // an authorized admin can reach the invoice and checkout screens.
-    paymentResolutionRequest: true,
-  });
-  if (!organizationAccess.allowed && organizationAccess.code === "LOGIN_BLOCKED") {
-    throw new OrganizationLoginBlockedError(organizationAccess.message);
-  }
-
-  // --- Password expiry check ---
-  // If the org has a password_expiry_days policy (> 0), check if the user's
-  // password is older than that many days and flag it in the response.
-  // Super admins have no org policy -- treat as no expiry.
-  let passwordExpired = false;
-  const expiryDays = org?.password_expiry_days ?? 0;
-  if (expiryDays > 0) {
-    const changedAt = user.password_changed_at
-      ? new Date(user.password_changed_at)
-      : new Date(user.created_at);
-    const ageMs = Date.now() - changedAt.getTime();
-    const ageDays = ageMs / (1000 * 60 * 60 * 24);
-    if (ageDays >= expiryDays) {
-      passwordExpired = true;
+    if (user.date_of_exit) {
+      const exitDate = new Date(user.date_of_exit);
+      exitDate.setHours(23, 59, 59, 999);
+      if (exitDate < new Date()) {
+        throw new UnauthorizedError("Account is deactivated");
+      }
     }
+
+    // Verify password — bcrypt.compare() never throws on invalid hash, but catch
+    // any unexpected errors (e.g., corrupted hash format, bcrypt library errors)
+    let valid: boolean;
+    try {
+      valid = await verifyPassword(params.password, user.password);
+    } catch (pwErr) {
+      logger.error("Error during password verification", {
+        email: params.email,
+        userId: user.id,
+        errorMessage: pwErr instanceof Error ? pwErr.message : String(pwErr),
+      });
+      throw pwErr;
+    }
+
+    if (!valid) {
+      // #1049 — Record failed login attempt in audit log
+      await logAudit({
+        organizationId: user.organization_id,
+        userId: user.id,
+        action: AuditAction.LOGIN_FAILED,
+        details: { email: params.email, reason: "invalid_password" },
+      });
+      throw new UnauthorizedError("Invalid email or password");
+    }
+
+    // Super admins live at organization_id=0 (a sentinel id reserved by
+    // migration 036 — no real org has id=0, MySQL auto_increment starts at
+    // 1). The convention keeps super admins out of every tenant's user
+    // list, but it also means the standard "look up org row and check
+    // is_active" gate would fail closed for every super_admin login since
+    // there is no row at id=0. Skip the org-active gate for super_admins;
+    // for everyone else the gate is unchanged.
+    const isSuperAdmin = user.role === "super_admin";
+    let org: any = null;
+    if (!isSuperAdmin) {
+      try {
+        org = await db("organizations").where({ id: user.organization_id }).first();
+      } catch (dbErr) {
+        logger.error("Database error during org lookup", {
+          email: params.email,
+          userId: user.id,
+          orgId: user.organization_id,
+          errorMessage: dbErr instanceof Error ? dbErr.message : String(dbErr),
+        });
+        throw dbErr;
+      }
+
+      if (!org || !org.is_active) {
+        throw new UnauthorizedError("Organization is inactive");
+      }
+    }
+
+    // Evaluate organization access — catch unexpected errors
+    let organizationAccess: any;
+    try {
+      organizationAccess = await evaluateOrganizationAccess({
+        organizationId: org?.id ?? 0,
+        organization: org,
+        // Payment-restricted organizations must still be able to authenticate so
+        // an authorized admin can reach the invoice and checkout screens.
+        paymentResolutionRequest: true,
+      });
+    } catch (accessErr) {
+      logger.error("Error during organization access evaluation", {
+        email: params.email,
+        userId: user.id,
+        orgId: org?.id ?? 0,
+        errorMessage: accessErr instanceof Error ? accessErr.message : String(accessErr),
+      });
+      throw accessErr;
+    }
+
+    if (!organizationAccess.allowed && organizationAccess.code === "LOGIN_BLOCKED") {
+      throw new OrganizationLoginBlockedError(organizationAccess.message);
+    }
+
+    // --- Password expiry check ---
+    // If the org has a password_expiry_days policy (> 0), check if the user's
+    // password is older than that many days and flag it in the response.
+    // Super admins have no org policy -- treat as no expiry.
+    let passwordExpired = false;
+    const expiryDays = org?.password_expiry_days ?? 0;
+    if (expiryDays > 0) {
+      const changedAt = user.password_changed_at
+        ? new Date(user.password_changed_at)
+        : new Date(user.created_at);
+      const ageMs = Date.now() - changedAt.getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      if (ageDays >= expiryDays) {
+        passwordExpired = true;
+      }
+    }
+
+    // Issue tokens — if this fails, the user authenticated but we cannot proceed.
+    // Log with full context before throwing.
+    let tokens: object;
+    try {
+      tokens = await issueTokens({
+        userId: user.id,
+        orgId: org?.id ?? 0,
+        email: user.email,
+        role: user.role as UserRole,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        orgName: org?.name ?? "EMP Cloud Platform",
+        scope: "openid profile email",
+        clientId: EMPCLOUD_CLIENT_ID,
+      });
+      logger.debug("Tokens issued successfully", { userId: user.id, orgId: org?.id ?? 0 });
+    } catch (tokenErr) {
+      logger.error("Token issuance failed during login", {
+        email: user.email,
+        userId: user.id,
+        orgId: org?.id ?? 0,
+        tokenError: tokenErr instanceof Error ? tokenErr.message : String(tokenErr),
+      });
+      throw tokenErr;
+    }
+
+    logger.info("User logged in successfully", {
+      email: user.email,
+      userId: user.id,
+      orgId: org?.id ?? 0,
+      orgName: org?.name ?? "Platform",
+    });
+
+    const { password: _, ...safeUser } = user;
+    return {
+      user: safeUser,
+      org,
+      tokens,
+      password_expired: passwordExpired,
+      payment_restricted: organizationAccess.paymentRestricted,
+    };
+  } catch (err) {
+    // Log all login errors with context (no passwords, tokens, or secrets)
+    if (err instanceof UnauthorizedError || err instanceof OrganizationLoginBlockedError) {
+      // Expected auth errors, already logged above if applicable
+      throw err;
+    }
+
+    if (err instanceof Error) {
+      logger.error("Login failed", {
+        email: params.email,
+        errorMessage: err.message,
+        errorCode: (err as any).code,
+      });
+    } else {
+      logger.error("Login failed (non-Error thrown)", {
+        email: params.email,
+        error: String(err),
+      });
+    }
+
+    throw err;
   }
-
-  const tokens = await issueTokens({
-    userId: user.id,
-    orgId: org?.id ?? 0,
-    email: user.email,
-    role: user.role as UserRole,
-    firstName: user.first_name,
-    lastName: user.last_name,
-    orgName: org?.name ?? "EMP Cloud Platform",
-    scope: "openid profile email",
-    clientId: EMPCLOUD_CLIENT_ID,
-  });
-
-  const { password: _, ...safeUser } = user;
-  return {
-    user: safeUser,
-    org,
-    tokens,
-    password_expired: passwordExpired,
-    payment_restricted: organizationAccess.paymentRestricted,
-  };
 }
 
 // ---------------------------------------------------------------------------
