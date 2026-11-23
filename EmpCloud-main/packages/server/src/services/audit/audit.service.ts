@@ -17,8 +17,13 @@ export async function logAudit(params: {
   userAgent?: string;
 }): Promise<void> {
   const db = getDB();
+  
+  // Super admin (organization_id=0) is a sentinel value with no row in organizations table.
+  // Convert org_id=0 to NULL to avoid FK constraint violation. Regular org users keep their ID.
+  const organizationId = params.organizationId === 0 ? null : (params.organizationId ?? null);
+  
   await db("audit_logs").insert({
-    organization_id: params.organizationId ?? null,
+    organization_id: organizationId,
     user_id: params.userId ?? null,
     action: params.action,
     resource_type: params.resourceType ?? null,
